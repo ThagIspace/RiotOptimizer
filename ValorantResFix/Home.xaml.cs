@@ -27,11 +27,9 @@ namespace ValorantResFix
         List<ScalabilityGroups> _SG = new List<ScalabilityGroups>();
         ScalabilityGroups backupData = new ScalabilityGroups();
 
-
         // ini parse
         FileIniDataParser parser = new FileIniDataParser();
         List<IniData> _iniList = new List<IniData>();
-
 
         public Home(List<string> fl)
         {
@@ -42,31 +40,47 @@ namespace ValorantResFix
             StartUP();
         }
 
+        private int ParseIniInt(string val, int defaultVal)
+        {
+            if (string.IsNullOrWhiteSpace(val)) return defaultVal;
+            decimal result;
+            if (decimal.TryParse(val, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out result))
+            {
+                return (int)result;
+            }
+            return defaultVal;
+        }
+
         private void StartUP()
         {
-            ScalabilityGroups sg = new ScalabilityGroups();
-
-
             TotalFileTxt.Text = _fnames.Count.ToString();
 
             // load Data
-            foreach(var s in _fnames)
+            foreach (var s in _fnames)
             {
-                IniData data = parser.ReadFile(s);
-               
                 try
                 {
-                    sg.ResolutionQuality = (int)decimal.Parse(data["ScalabilityGroups"]["sg.ResolutionQuality"]);
-                    sg.ViewDistanceQuality = (int)decimal.Parse(data["ScalabilityGroups"]["sg.ViewDistanceQuality"]);
-                    sg.AntiAliasingQuality = (int)decimal.Parse(data["ScalabilityGroups"]["sg.AntiAliasingQuality"]);
-                    sg.ShadowQuality = (int)decimal.Parse(data["ScalabilityGroups"]["sg.ShadowQuality"]);
-                    sg.PostProcessQuality = (int)decimal.Parse(data["ScalabilityGroups"]["sg.PostProcessQuality"]);
-                    sg.TextureQuality = (int)decimal.Parse(data["ScalabilityGroups"]["sg.TextureQuality"]);
-                    sg.EffectsQuality = (int)decimal.Parse(data["ScalabilityGroups"]["sg.EffectsQuality"]);
-                    sg.FoliageQuality = (int)decimal.Parse(data["ScalabilityGroups"]["sg.FoliageQuality"]);
-                    sg.ShadingQuality = (int)decimal.Parse(data["ScalabilityGroups"]["sg.ShadingQuality"]);
-                    sg.FilePath = s;
+                    IniData data = parser.ReadFile(s);
+                    ScalabilityGroups sg = new ScalabilityGroups();
 
+                    var sgSection = data["ScalabilityGroups"];
+                    if (sgSection == null)
+                    {
+                        data.Sections.AddSection("ScalabilityGroups");
+                        sgSection = data["ScalabilityGroups"];
+                    }
+
+                    // ResolutionQuality defaults to 100 if omitted in ini
+                    sg.ResolutionQuality = ParseIniInt(sgSection["sg.ResolutionQuality"], 100);
+                    sg.ViewDistanceQuality = ParseIniInt(sgSection["sg.ViewDistanceQuality"], 3);
+                    sg.AntiAliasingQuality = ParseIniInt(sgSection["sg.AntiAliasingQuality"], 3);
+                    sg.ShadowQuality = ParseIniInt(sgSection["sg.ShadowQuality"], 3);
+                    sg.PostProcessQuality = ParseIniInt(sgSection["sg.PostProcessQuality"], 3);
+                    sg.TextureQuality = ParseIniInt(sgSection["sg.TextureQuality"], 0);
+                    sg.EffectsQuality = ParseIniInt(sgSection["sg.EffectsQuality"], 3);
+                    sg.FoliageQuality = ParseIniInt(sgSection["sg.FoliageQuality"], 3);
+                    sg.ShadingQuality = ParseIniInt(sgSection["sg.ShadingQuality"], 3);
+                    sg.FilePath = s;
 
                     _SG.Add(sg);
                     _iniList.Add(data);
@@ -78,10 +92,11 @@ namespace ValorantResFix
             }
 
             // View Data 
-            if (_SG.Count() < 1)
+            if (_SG.Count < 1)
             {
-                MessageBox.Show("Something went wrong parsing the config file.");
-                System.Windows.Application.Current.Shutdown();
+                MessageBox.Show("Could not parse config files. Please ensure Valorant has run at least once.", "Error");
+                Application.Current.Shutdown();
+                return;
             }
             else
             {
@@ -94,9 +109,8 @@ namespace ValorantResFix
                 TextureQBox.Text = _SG[0].TextureQuality.ToString();
                 EffectQBox.Text = _SG[0].EffectsQuality.ToString();
                 FoliageQBox.Text = _SG[0].FoliageQuality.ToString();
-                ShadingQBox.Text = _SG[0].ShadowQuality.ToString();
+                ShadingQBox.Text = _SG[0].ShadingQuality.ToString();
             }
-
 
             // check backup 
             if (File.Exists("Backup.dat"))
@@ -105,10 +119,10 @@ namespace ValorantResFix
 
                 if (backupData == null)
                 {
-                    MessageBox.Show("Failed parsing Backup File.\nBAckup-File might be corrupted. Please restart the application.");
-                    Application.Current.Shutdown();
+                    MessageBox.Show("Failed parsing Backup File.\nBackup file might be corrupted. Creating new backup from current settings.", "Notice");
+                    Shelper.SerializeObj(_SG[0], "Backup.dat");
+                    backupData = _SG[0];
                 }
-
             }
             else // writes backup
             {
@@ -118,20 +132,18 @@ namespace ValorantResFix
                 }
                 else
                 {
-                    MessageBox.Show("Something went wrong while keeping the backup.\nPlease restart the application.");
-                    Application.Current.Shutdown();
+                    MessageBox.Show("Something went wrong while keeping the backup.\nPlease restart the application.", "Notice");
                 }
             }
 
             LoadGrid.Visibility = Visibility.Collapsed;
-
         }
 
         private void SaveBtn_Click(object sender, RoutedEventArgs e)
         {
             ScalabilityGroups sg = new ScalabilityGroups();
-            // validations 
-            // 1st validation -try convert str to int
+
+            // 1st validation - try convert str to int
             try
             {
                 sg.ResolutionQuality = Int32.Parse(ResqualityBox.Text);
@@ -143,83 +155,70 @@ namespace ValorantResFix
                 sg.EffectsQuality = Int32.Parse(EffectQBox.Text);
                 sg.FoliageQuality = Int32.Parse(FoliageQBox.Text);
                 sg.ShadingQuality = Int32.Parse(ShadingQBox.Text);
-
             }
             catch
             {
-                MessageBox.Show("Invalid Data Entered. \nMake sure all the field has valid integer value and try again.","Error");
+                MessageBox.Show("Invalid Data Entered.\nMake sure all fields have valid integer values and try again.", "Error");
                 return;
             }
-            
-            // second validation - value in between the range
-            // resolution quality 0 < x < 100
+
+            // 2nd validation - value within range
             if (sg.ResolutionQuality < 0 || sg.ResolutionQuality > 100)
             {
-                MessageBox.Show("Invalid Value for resolution quality.\nValue must be between 0 to 100","Error");
+                MessageBox.Show("Invalid Value for Resolution Quality.\nValue must be between 0 and 100", "Error");
                 return;
             }
 
-            // ViewDistanceQuality
             if (sg.ViewDistanceQuality < 0 || sg.ViewDistanceQuality > 5)
             {
-                MessageBox.Show("Invalid Value for View Distance Quality.\nValue must be between 0 to 5", "Error");
+                MessageBox.Show("Invalid Value for View Distance Quality.\nValue must be between 0 and 5", "Error");
                 return;
             }
 
-            // AntiAliasingQuality
             if (sg.AntiAliasingQuality < 0 || sg.AntiAliasingQuality > 5)
             {
-                MessageBox.Show("Invalid Value for Anti-Aliasing Quality.\nValue must be between 0 to 5", "Error");
+                MessageBox.Show("Invalid Value for Anti-Aliasing Quality.\nValue must be between 0 and 5", "Error");
                 return;
             }
 
-            // ShadowQuality
             if (sg.ShadowQuality < 0 || sg.ShadowQuality > 5)
             {
-                MessageBox.Show("Invalid Value for ShadowQuality.\nValue must be between 0 to 5", "Error");
+                MessageBox.Show("Invalid Value for Shadow Quality.\nValue must be between 0 and 5", "Error");
                 return;
             }
 
-            // PostProcessQuality
             if (sg.PostProcessQuality < 0 || sg.PostProcessQuality > 5)
             {
-                MessageBox.Show("Invalid Value for PostProcessQuality.\nValue must be between 0 to 5", "Error");
+                MessageBox.Show("Invalid Value for Post-Process Quality.\nValue must be between 0 and 5", "Error");
                 return;
             }
 
-            // TextureQuality
             if (sg.TextureQuality < 0 || sg.TextureQuality > 5)
             {
-                MessageBox.Show("Invalid Value for TextureQuality.\nValue must be between 0 to 5", "Error");
+                MessageBox.Show("Invalid Value for Texture Quality.\nValue must be between 0 and 5", "Error");
                 return;
             }
 
-            // EffectsQuality
             if (sg.EffectsQuality < 0 || sg.EffectsQuality > 5)
             {
-                MessageBox.Show("Invalid Value for EffectsQuality.\nValue must be between 0 to 5", "Error");
+                MessageBox.Show("Invalid Value for Effects Quality.\nValue must be between 0 and 5", "Error");
                 return;
             }
 
-            // PostProcessQuality
             if (sg.FoliageQuality < 0 || sg.FoliageQuality > 5)
             {
-                MessageBox.Show("Invalid Value for FoliageQuality.\nValue must be between 0 to 5", "Error");
+                MessageBox.Show("Invalid Value for Foliage Quality.\nValue must be between 0 and 5", "Error");
                 return;
             }
 
-            // ShadingQuality
             if (sg.ShadingQuality < 0 || sg.ShadingQuality > 5)
             {
-                MessageBox.Show("Invalid Value for ShadingQuality.\nValue must be between 0 to 5", "Error");
+                MessageBox.Show("Invalid Value for Shading Quality.\nValue must be between 0 and 5", "Error");
                 return;
             }
 
-
             SaveChanges(sg);
-
-            MessageBox.Show("Settings Successfully Changed", "Done");
-
+            MessageBox.Show("Settings Successfully Changed!", "Done");
         }
 
         private void ApplyLowBtn_Click(object sender, RoutedEventArgs e)
@@ -239,8 +238,7 @@ namespace ValorantResFix
 
             SaveChanges(sg);
 
-            MessageBox.Show("Low Settings Applied.\nNB: This is the minimum quality required to play the game properly. Changes bellow this will be almost unplayable", "Done");
-
+            MessageBox.Show("Low Settings Applied.\nNB: This is the recommended minimum quality for low-end PCs while maintaining playability.", "Done");
 
             ResqualityBox.Text = sg.ResolutionQuality.ToString();
             ViewDistanceQBox.Text = sg.ViewDistanceQuality.ToString();
@@ -250,7 +248,7 @@ namespace ValorantResFix
             TextureQBox.Text = sg.TextureQuality.ToString();
             EffectQBox.Text = sg.EffectsQuality.ToString();
             FoliageQBox.Text = sg.FoliageQuality.ToString();
-            ShadingQBox.Text = sg.ShadowQuality.ToString();
+            ShadingQBox.Text = sg.ShadingQuality.ToString();
         }
 
         private void resDefBtn_Click(object sender, RoutedEventArgs e)
@@ -270,7 +268,7 @@ namespace ValorantResFix
 
             SaveChanges(sg);
 
-            MessageBox.Show("Default value restored.");
+            MessageBox.Show("Default values restored successfully.", "Done");
 
             ResqualityBox.Text = sg.ResolutionQuality.ToString();
             ViewDistanceQBox.Text = sg.ViewDistanceQuality.ToString();
@@ -280,18 +278,21 @@ namespace ValorantResFix
             TextureQBox.Text = sg.TextureQuality.ToString();
             EffectQBox.Text = sg.EffectsQuality.ToString();
             FoliageQBox.Text = sg.FoliageQuality.ToString();
-            ShadingQBox.Text = sg.ShadowQuality.ToString();
+            ShadingQBox.Text = sg.ShadingQuality.ToString();
         }
-
 
         // helper method to save ini
         private void SaveChanges(ScalabilityGroups sg)
         {
-            // change data
             try
             {
-                for (int i = 0; i < _iniList.Count(); i++)
+                for (int i = 0; i < _iniList.Count; i++)
                 {
+                    if (_iniList[i]["ScalabilityGroups"] == null)
+                    {
+                        _iniList[i].Sections.AddSection("ScalabilityGroups");
+                    }
+
                     _iniList[i]["ScalabilityGroups"]["sg.ResolutionQuality"] = sg.ResolutionQuality + ".000000";
                     _iniList[i]["ScalabilityGroups"]["sg.ViewDistanceQuality"] = sg.ViewDistanceQuality.ToString();
                     _iniList[i]["ScalabilityGroups"]["sg.AntiAliasingQuality"] = sg.AntiAliasingQuality.ToString();
@@ -302,29 +303,29 @@ namespace ValorantResFix
                     _iniList[i]["ScalabilityGroups"]["sg.FoliageQuality"] = sg.FoliageQuality.ToString();
                     _iniList[i]["ScalabilityGroups"]["sg.ShadingQuality"] = sg.ShadingQuality.ToString();
 
+                    string filePath = _fnames[i];
+                    if (File.Exists(filePath))
+                    {
+                        var attr = File.GetAttributes(filePath);
 
-                    var attr = File.GetAttributes(_SG[i].FilePath);
+                        // unset read-only before writing
+                        if ((attr & FileAttributes.ReadOnly) == FileAttributes.ReadOnly)
+                        {
+                            File.SetAttributes(filePath, attr & ~FileAttributes.ReadOnly);
+                        }
 
-                    // unset read-only
-                    attr = attr & ~FileAttributes.ReadOnly;
-                    File.SetAttributes(_fnames[i], attr);
+                        parser.WriteFile(filePath, _iniList[i]);
 
-                    parser = new FileIniDataParser();
-                    parser.WriteFile(_fnames[i], _iniList[i]);
-
-                    // set read-only
-                    attr = attr | FileAttributes.ReadOnly;
-                    File.SetAttributes(_fnames[i], attr);
+                        // set read-only to prevent game from reverting custom resolution scale
+                        File.SetAttributes(filePath, attr | FileAttributes.ReadOnly);
+                    }
                 }
             }
-            catch
+            catch (Exception ex)
             {
-                MessageBox.Show("Something went wrong while changing the data.");
+                MessageBox.Show("Something went wrong while saving settings: " + ex.Message, "Error");
                 return;
             }
-
-
-            
         }
     }
 }
