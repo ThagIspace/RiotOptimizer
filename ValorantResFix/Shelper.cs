@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Runtime.Serialization;
 using System.Runtime.Serialization.Formatters.Binary;
 using System.Text;
 using System.Threading.Tasks;
@@ -10,16 +11,27 @@ namespace ValorantResFix
 {
     public class Shelper
     {
+        // Custom binder to allow deserializing ScalabilityGroups across different assembly versions
+        private sealed class VersionTolerantBinder : SerializationBinder
+        {
+            public override Type BindToType(string assemblyName, string typeName)
+            {
+                if (typeName != null && typeName.EndsWith("ScalabilityGroups"))
+                {
+                    return typeof(ScalabilityGroups);
+                }
+                return Type.GetType(string.Format("{0}, {1}", typeName, assemblyName));
+            }
+        }
+
         public static int SerializeObj(object obj, string fpath)
         {
             try
             {
-                using (FileStream fs = File.Create(fpath))
+                using (FileStream fs = new FileStream(fpath, FileMode.Create, FileAccess.Write, FileShare.None))
                 {
                     BinaryFormatter bf = new BinaryFormatter();
-
                     bf.Serialize(fs, obj);
-
                     return 1;
                 }
             }
@@ -31,28 +43,21 @@ namespace ValorantResFix
 
         public static object DeserializeObj(string fpath)
         {
-            object obj = null;
+            if (!File.Exists(fpath)) return null;
 
             try
             {
-                if (File.Exists(fpath))
+                using (FileStream fs = new FileStream(fpath, FileMode.Open, FileAccess.Read, FileShare.Read))
                 {
-                    FileStream fs = File.Open(fpath, FileMode.Open);
-
                     BinaryFormatter bf = new BinaryFormatter();
-                    obj = bf.Deserialize(fs);
-
-                    fs.Close();
+                    bf.Binder = new VersionTolerantBinder();
+                    return bf.Deserialize(fs);
                 }
             }
             catch
             {
-
+                return null;
             }
-
-            return obj;
         }
-
-
     }
 }

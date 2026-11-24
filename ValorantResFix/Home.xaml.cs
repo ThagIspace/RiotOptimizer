@@ -2,6 +2,7 @@
 using IniParser.Model;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -23,19 +24,27 @@ namespace ValorantResFix
     /// </summary>
     public partial class Home : Page
     {
-        List<string> _fnames = new List<string>();
-        List<ScalabilityGroups> _SG = new List<ScalabilityGroups>();
-        ScalabilityGroups backupData = new ScalabilityGroups();
+        private List<string> _fnames = new List<string>();
+        private List<ScalabilityGroups> _SG = new List<ScalabilityGroups>();
+        private ScalabilityGroups backupData = new ScalabilityGroups();
 
-        // ini parse
-        FileIniDataParser parser = new FileIniDataParser();
-        List<IniData> _iniList = new List<IniData>();
+        // ini parser
+        private FileIniDataParser parser = new FileIniDataParser();
+        private List<IniData> _iniList = new List<IniData>();
+
+        private string BackupFilePath
+        {
+            get
+            {
+                return System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Backup.dat");
+            }
+        }
 
         public Home(List<string> fl)
         {
             InitializeComponent();
 
-            _fnames = fl;
+            _fnames = fl ?? new List<string>();
 
             StartUP();
         }
@@ -49,6 +58,22 @@ namespace ValorantResFix
                 return (int)result;
             }
             return defaultVal;
+        }
+
+        private bool IsValorantRunning()
+        {
+            try
+            {
+                Process[] procs = Process.GetProcessesByName("VALORANT-Win64-Shipping");
+                if (procs != null && procs.Length > 0) return true;
+
+                Process[] procs2 = Process.GetProcessesByName("VALORANT");
+                return procs2 != null && procs2.Length > 0;
+            }
+            catch
+            {
+                return false;
+            }
         }
 
         private void StartUP()
@@ -113,26 +138,22 @@ namespace ValorantResFix
             }
 
             // check backup 
-            if (File.Exists("Backup.dat"))
+            string backupPath = BackupFilePath;
+            if (File.Exists(backupPath))
             {
-                backupData = (ScalabilityGroups)Shelper.DeserializeObj("Backup.dat");
+                backupData = (ScalabilityGroups)Shelper.DeserializeObj(backupPath);
 
                 if (backupData == null)
                 {
-                    MessageBox.Show("Failed parsing Backup File.\nBackup file might be corrupted. Creating new backup from current settings.", "Notice");
-                    Shelper.SerializeObj(_SG[0], "Backup.dat");
+                    Shelper.SerializeObj(_SG[0], backupPath);
                     backupData = _SG[0];
                 }
             }
             else // writes backup
             {
-                if (Shelper.SerializeObj(_SG[0], "Backup.dat") == 1)
+                if (Shelper.SerializeObj(_SG[0], backupPath) == 1)
                 {
                     backupData = _SG[0];
-                }
-                else
-                {
-                    MessageBox.Show("Something went wrong while keeping the backup.\nPlease restart the application.", "Notice");
                 }
             }
 
@@ -141,24 +162,34 @@ namespace ValorantResFix
 
         private void SaveBtn_Click(object sender, RoutedEventArgs e)
         {
+            if (IsValorantRunning())
+            {
+                var answer = MessageBox.Show(
+                    "VALORANT is currently running!\n\nPlease close VALORANT before applying changes, otherwise the game may overwrite them upon closing.\n\nDo you want to save anyway?",
+                    "VALORANT Running",
+                    MessageBoxButton.YesNo,
+                    MessageBoxImage.Warning);
+                if (answer != MessageBoxResult.Yes) return;
+            }
+
             ScalabilityGroups sg = new ScalabilityGroups();
 
             // 1st validation - try convert str to int
             try
             {
-                sg.ResolutionQuality = Int32.Parse(ResqualityBox.Text);
-                sg.ViewDistanceQuality = Int32.Parse(ViewDistanceQBox.Text);
-                sg.AntiAliasingQuality = Int32.Parse(AntiAliasisBox.Text);
-                sg.ShadowQuality = Int32.Parse(ShadowQBox.Text);
-                sg.PostProcessQuality = Int32.Parse(PostProcessBox.Text);
-                sg.TextureQuality = Int32.Parse(TextureQBox.Text);
-                sg.EffectsQuality = Int32.Parse(EffectQBox.Text);
-                sg.FoliageQuality = Int32.Parse(FoliageQBox.Text);
-                sg.ShadingQuality = Int32.Parse(ShadingQBox.Text);
+                sg.ResolutionQuality = Int32.Parse(ResqualityBox.Text.Trim());
+                sg.ViewDistanceQuality = Int32.Parse(ViewDistanceQBox.Text.Trim());
+                sg.AntiAliasingQuality = Int32.Parse(AntiAliasisBox.Text.Trim());
+                sg.ShadowQuality = Int32.Parse(ShadowQBox.Text.Trim());
+                sg.PostProcessQuality = Int32.Parse(PostProcessBox.Text.Trim());
+                sg.TextureQuality = Int32.Parse(TextureQBox.Text.Trim());
+                sg.EffectsQuality = Int32.Parse(EffectQBox.Text.Trim());
+                sg.FoliageQuality = Int32.Parse(FoliageQBox.Text.Trim());
+                sg.ShadingQuality = Int32.Parse(ShadingQBox.Text.Trim());
             }
             catch
             {
-                MessageBox.Show("Invalid Data Entered.\nMake sure all fields have valid integer values and try again.", "Error");
+                MessageBox.Show("Invalid Data Entered.\nMake sure all fields have valid integer numbers and try again.", "Error");
                 return;
             }
 
@@ -223,6 +254,16 @@ namespace ValorantResFix
 
         private void ApplyLowBtn_Click(object sender, RoutedEventArgs e)
         {
+            if (IsValorantRunning())
+            {
+                var answer = MessageBox.Show(
+                    "VALORANT is currently running!\n\nPlease close VALORANT before applying changes, otherwise the game may overwrite them upon closing.\n\nDo you want to apply anyway?",
+                    "VALORANT Running",
+                    MessageBoxButton.YesNo,
+                    MessageBoxImage.Warning);
+                if (answer != MessageBoxResult.Yes) return;
+            }
+
             ScalabilityGroups sg = new ScalabilityGroups
             {
                 ResolutionQuality = 60,
@@ -253,6 +294,16 @@ namespace ValorantResFix
 
         private void resDefBtn_Click(object sender, RoutedEventArgs e)
         {
+            if (IsValorantRunning())
+            {
+                var answer = MessageBox.Show(
+                    "VALORANT is currently running!\n\nPlease close VALORANT before applying changes.\n\nDo you want to restore anyway?",
+                    "VALORANT Running",
+                    MessageBoxButton.YesNo,
+                    MessageBoxImage.Warning);
+                if (answer != MessageBoxResult.Yes) return;
+            }
+
             ScalabilityGroups sg = new ScalabilityGroups
             {
                 ResolutionQuality = backupData.ResolutionQuality,
@@ -302,6 +353,19 @@ namespace ValorantResFix
                     _iniList[i]["ScalabilityGroups"]["sg.EffectsQuality"] = sg.EffectsQuality.ToString();
                     _iniList[i]["ScalabilityGroups"]["sg.FoliageQuality"] = sg.FoliageQuality.ToString();
                     _iniList[i]["ScalabilityGroups"]["sg.ShadingQuality"] = sg.ShadingQuality.ToString();
+
+                    if (i < _SG.Count)
+                    {
+                        _SG[i].ResolutionQuality = sg.ResolutionQuality;
+                        _SG[i].ViewDistanceQuality = sg.ViewDistanceQuality;
+                        _SG[i].AntiAliasingQuality = sg.AntiAliasingQuality;
+                        _SG[i].ShadowQuality = sg.ShadowQuality;
+                        _SG[i].PostProcessQuality = sg.PostProcessQuality;
+                        _SG[i].TextureQuality = sg.TextureQuality;
+                        _SG[i].EffectsQuality = sg.EffectsQuality;
+                        _SG[i].FoliageQuality = sg.FoliageQuality;
+                        _SG[i].ShadingQuality = sg.ShadingQuality;
+                    }
 
                     string filePath = _fnames[i];
                     if (File.Exists(filePath))

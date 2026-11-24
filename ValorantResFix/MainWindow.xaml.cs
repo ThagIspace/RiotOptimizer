@@ -12,7 +12,6 @@ using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Navigation;
-using System.Windows.Shapes;
 
 namespace ValorantResFix
 {
@@ -69,6 +68,9 @@ namespace ValorantResFix
                         }
                     }
                 }
+
+                // Remove duplicate paths (case-insensitive)
+                SettingsFileList = SettingsFileList.Distinct(StringComparer.OrdinalIgnoreCase).ToList();
 
                 if (SettingsFileList.Count < 1) // if No GameSettings File found
                 {
