@@ -7,7 +7,7 @@
     <ProjectGuid>{DA3E2100-01D6-4104-B5B1-E777FE69D051}</ProjectGuid>
     <OutputType>WinExe</OutputType>
     <RootNamespace>ValorantResFix</RootNamespace>
-    <AssemblyName>ValorantResFix</AssemblyName>
+    <AssemblyName>RiotOptimizer</AssemblyName>
     <TargetFrameworkVersion>v4.6.1</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
     <ProjectTypeGuids>{60dc8134-eba5-43b8-bcc9-bb4bc16c2548};{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}</ProjectTypeGuids>
@@ -72,7 +72,16 @@
       <DependentUpon>ErrorPage.xaml</DependentUpon>
     </Compile>
     <Compile Include="ScalabilityGroups.cs" />
+    <Compile Include="LoLSettings.cs" />
+    <Compile Include="Loc.cs" />
     <Compile Include="Shelper.cs" />
+    <Compile Include="LoLPage.xaml.cs">
+      <DependentUpon>LoLPage.xaml</DependentUpon>
+    </Compile>
+    <Page Include="LoLPage.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
     <Page Include="ErrorPage.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>

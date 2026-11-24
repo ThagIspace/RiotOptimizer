@@ -7,11 +7,11 @@ using System.Windows;
 // General Information about an assembly is controlled through the following
 // set of attributes. Change these attribute values to modify the information
 // associated with an assembly.
-[assembly: AssemblyTitle("ValorantResFix")]
-[assembly: AssemblyDescription("Lightweight utility to optimize Valorant resolution and graphics settings")]
+[assembly: AssemblyTitle("RiotOptimizer")]
+[assembly: AssemblyDescription("All-in-one optimizer for Riot Games (VALORANT & League of Legends)")]
 [assembly: AssemblyConfiguration("")]
 [assembly: AssemblyCompany("ThagIspace")]
-[assembly: AssemblyProduct("ValorantResFix")]
+[assembly: AssemblyProduct("RiotOptimizer")]
 [assembly: AssemblyCopyright("Copyright © 2021-2024")]
 [assembly: AssemblyTrademark("")]
 [assembly: AssemblyCulture("")]
@@ -51,5 +51,5 @@ using System.Windows;
 // You can specify all the values or you can default the Build and Revision Numbers
 // by using the '*' as shown below:
 // [assembly: AssemblyVersion("1.0.*")]
-[assembly: AssemblyVersion("2.0.0.0")]
-[assembly: AssemblyFileVersion("2.0.0.0")]
+[assembly: AssemblyVersion("2.5.0.0")]
+[assembly: AssemblyFileVersion("2.5.0.0")]

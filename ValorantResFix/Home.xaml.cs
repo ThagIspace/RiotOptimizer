@@ -46,7 +46,38 @@ namespace ValorantResFix
 
             _fnames = fl ?? new List<string>();
 
+            Loc.OnLanguageChanged += ApplyLocalization;
+            ApplyLocalization();
+
             StartUP();
+        }
+
+        private void ApplyLocalization()
+        {
+            if (Loc.IsVi)
+            {
+                TotalAccountsLbl.Text = "Tổng số tài khoản";
+                SaveBtn.Content = "Lưu thay đổi";
+                SaveBtn.ToolTip = "Lưu thiết lập vào tất cả tài khoản";
+                ApplyLowBtn.Content = "Tối ưu FPS (Low)";
+                ApplyLowBtn.ToolTip = "Cài đặt cấu hình thấp nhất để tối đa hóa FPS";
+                ResDefBtnText.Text = "Khôi phục gốc";
+                resDefBtn.ToolTip = "Khôi phục tất cả tài khoản về cài đặt gốc và mở khóa file";
+                LoadTxt.Text = "Đang tải dữ liệu, vui lòng đợi...";
+                ValScaleHintTxt.Text = "• Mức đồ họa: 0 = Thấp nhất (Low), 1 = Trung bình, 2 = Cao, 3 = Tối đa (Ultra) | Độ phân giải: 0 - 100%";
+            }
+            else
+            {
+                TotalAccountsLbl.Text = "Total Accounts";
+                SaveBtn.Content = "Save Changes";
+                SaveBtn.ToolTip = "Save custom settings to all accounts";
+                ApplyLowBtn.Content = "Apply Low (FPS)";
+                ApplyLowBtn.ToolTip = "Optimal low settings for maximum FPS";
+                ResDefBtnText.Text = "Rollback Default";
+                resDefBtn.ToolTip = "Rollback all accounts to original settings and unlock files";
+                LoadTxt.Text = "Loading Data, Please wait...";
+                ValScaleHintTxt.Text = "• Graphics scale: 0 = Low, 1 = Medium, 2 = High, 3 = Ultra | Resolution Quality: 0 - 100%";
+            }
         }
 
         private int ParseIniInt(string val, int defaultVal)
@@ -105,6 +136,8 @@ namespace ValorantResFix
                     sg.EffectsQuality = ParseIniInt(sgSection["sg.EffectsQuality"], 3);
                     sg.FoliageQuality = ParseIniInt(sgSection["sg.FoliageQuality"], 3);
                     sg.ShadingQuality = ParseIniInt(sgSection["sg.ShadingQuality"], 3);
+                    sg.GlobalIlluminationQuality = ParseIniInt(sgSection["sg.GlobalIlluminationQuality"], 3);
+                    sg.ReflectionQuality = ParseIniInt(sgSection["sg.ReflectionQuality"], 3);
                     sg.FilePath = s;
 
                     _SG.Add(sg);
@@ -119,13 +152,13 @@ namespace ValorantResFix
             // View Data 
             if (_SG.Count < 1)
             {
-                MessageBox.Show("Could not parse config files. Please ensure Valorant has run at least once.", "Error");
+                MessageBox.Show("Không thể đọc file cấu hình. Hãy đảm bảo VALORANT đã được khởi chạy ít nhất một lần.", "Lỗi");
                 Application.Current.Shutdown();
                 return;
             }
             else
             {
-                // set the first elements data to the view 
+                // set the first element's data to the view 
                 ResqualityBox.Text = _SG[0].ResolutionQuality.ToString();
                 ViewDistanceQBox.Text = _SG[0].ViewDistanceQuality.ToString();
                 AntiAliasisBox.Text = _SG[0].AntiAliasingQuality.ToString();
@@ -135,6 +168,8 @@ namespace ValorantResFix
                 EffectQBox.Text = _SG[0].EffectsQuality.ToString();
                 FoliageQBox.Text = _SG[0].FoliageQuality.ToString();
                 ShadingQBox.Text = _SG[0].ShadingQuality.ToString();
+                GIQualityBox.Text = _SG[0].GlobalIlluminationQuality.ToString();
+                ReflectionQBox.Text = _SG[0].ReflectionQuality.ToString();
             }
 
             // check backup 
@@ -165,8 +200,9 @@ namespace ValorantResFix
             if (IsValorantRunning())
             {
                 var answer = MessageBox.Show(
-                    "VALORANT is currently running!\n\nPlease close VALORANT before applying changes, otherwise the game may overwrite them upon closing.\n\nDo you want to save anyway?",
-                    "VALORANT Running",
+                    Loc.T("VALORANT hiện đang chạy!\n\nVui lòng đóng VALORANT trước khi lưu để tránh bị game ghi đè mất cấu hình khi thoát.\n\nBạn có muốn tiếp tục lưu không?",
+                          "VALORANT is currently running!\n\nPlease close VALORANT before applying changes, otherwise the game may overwrite them upon closing.\n\nDo you want to save anyway?"),
+                    Loc.T("Cảnh báo: VALORANT đang chạy", "VALORANT Running"),
                     MessageBoxButton.YesNo,
                     MessageBoxImage.Warning);
                 if (answer != MessageBoxResult.Yes) return;
@@ -186,70 +222,90 @@ namespace ValorantResFix
                 sg.EffectsQuality = Int32.Parse(EffectQBox.Text.Trim());
                 sg.FoliageQuality = Int32.Parse(FoliageQBox.Text.Trim());
                 sg.ShadingQuality = Int32.Parse(ShadingQBox.Text.Trim());
+                sg.GlobalIlluminationQuality = Int32.Parse(GIQualityBox.Text.Trim());
+                sg.ReflectionQuality = Int32.Parse(ReflectionQBox.Text.Trim());
             }
             catch
             {
-                MessageBox.Show("Invalid Data Entered.\nMake sure all fields have valid integer numbers and try again.", "Error");
+                MessageBox.Show(
+                    Loc.T("Dữ liệu nhập không hợp lệ.\nVui lòng đảm bảo tất cả các ô là số nguyên hợp lệ.",
+                          "Invalid Data Entered.\nMake sure all fields have valid integer numbers and try again."),
+                    Loc.T("Lỗi", "Error"));
                 return;
             }
 
             // 2nd validation - value within range
             if (sg.ResolutionQuality < 0 || sg.ResolutionQuality > 100)
             {
-                MessageBox.Show("Invalid Value for Resolution Quality.\nValue must be between 0 and 100", "Error");
+                MessageBox.Show(Loc.T("Giá trị Resolution Quality không hợp lệ (0-100).", "Invalid Value for Resolution Quality (0-100)."), Loc.T("Lỗi", "Error"));
                 return;
             }
 
             if (sg.ViewDistanceQuality < 0 || sg.ViewDistanceQuality > 5)
             {
-                MessageBox.Show("Invalid Value for View Distance Quality.\nValue must be between 0 and 5", "Error");
+                MessageBox.Show(Loc.T("Giá trị View Distance Quality không hợp lệ (0-5).", "Invalid Value for View Distance Quality (0-5)."), Loc.T("Lỗi", "Error"));
                 return;
             }
 
             if (sg.AntiAliasingQuality < 0 || sg.AntiAliasingQuality > 5)
             {
-                MessageBox.Show("Invalid Value for Anti-Aliasing Quality.\nValue must be between 0 and 5", "Error");
+                MessageBox.Show(Loc.T("Giá trị Anti-Aliasing Quality không hợp lệ (0-5).", "Invalid Value for Anti-Aliasing Quality (0-5)."), Loc.T("Lỗi", "Error"));
                 return;
             }
 
             if (sg.ShadowQuality < 0 || sg.ShadowQuality > 5)
             {
-                MessageBox.Show("Invalid Value for Shadow Quality.\nValue must be between 0 and 5", "Error");
+                MessageBox.Show(Loc.T("Giá trị Shadow Quality không hợp lệ (0-5).", "Invalid Value for Shadow Quality (0-5)."), Loc.T("Lỗi", "Error"));
                 return;
             }
 
             if (sg.PostProcessQuality < 0 || sg.PostProcessQuality > 5)
             {
-                MessageBox.Show("Invalid Value for Post-Process Quality.\nValue must be between 0 and 5", "Error");
+                MessageBox.Show(Loc.T("Giá trị Post-Process Quality không hợp lệ (0-5).", "Invalid Value for Post-Process Quality (0-5)."), Loc.T("Lỗi", "Error"));
                 return;
             }
 
             if (sg.TextureQuality < 0 || sg.TextureQuality > 5)
             {
-                MessageBox.Show("Invalid Value for Texture Quality.\nValue must be between 0 and 5", "Error");
+                MessageBox.Show(Loc.T("Giá trị Texture Quality không hợp lệ (0-5).", "Invalid Value for Texture Quality (0-5)."), Loc.T("Lỗi", "Error"));
                 return;
             }
 
             if (sg.EffectsQuality < 0 || sg.EffectsQuality > 5)
             {
-                MessageBox.Show("Invalid Value for Effects Quality.\nValue must be between 0 and 5", "Error");
+                MessageBox.Show(Loc.T("Giá trị Effects Quality không hợp lệ (0-5).", "Invalid Value for Effects Quality (0-5)."), Loc.T("Lỗi", "Error"));
                 return;
             }
 
             if (sg.FoliageQuality < 0 || sg.FoliageQuality > 5)
             {
-                MessageBox.Show("Invalid Value for Foliage Quality.\nValue must be between 0 and 5", "Error");
+                MessageBox.Show(Loc.T("Giá trị Foliage Quality không hợp lệ (0-5).", "Invalid Value for Foliage Quality (0-5)."), Loc.T("Lỗi", "Error"));
                 return;
             }
 
             if (sg.ShadingQuality < 0 || sg.ShadingQuality > 5)
             {
-                MessageBox.Show("Invalid Value for Shading Quality.\nValue must be between 0 and 5", "Error");
+                MessageBox.Show(Loc.T("Giá trị Shading Quality không hợp lệ (0-5).", "Invalid Value for Shading Quality (0-5)."), Loc.T("Lỗi", "Error"));
+                return;
+            }
+
+            if (sg.GlobalIlluminationQuality < 0 || sg.GlobalIlluminationQuality > 5)
+            {
+                MessageBox.Show(Loc.T("Giá trị Global Illumination Quality không hợp lệ (0-5).", "Invalid Value for Global Illumination Quality (0-5)."), Loc.T("Lỗi", "Error"));
+                return;
+            }
+
+            if (sg.ReflectionQuality < 0 || sg.ReflectionQuality > 5)
+            {
+                MessageBox.Show(Loc.T("Giá trị Reflection Quality không hợp lệ (0-5).", "Invalid Value for Reflection Quality (0-5)."), Loc.T("Lỗi", "Error"));
                 return;
             }
 
             SaveChanges(sg);
-            MessageBox.Show("Settings Successfully Changed!", "Done");
+            MessageBox.Show(
+                Loc.T("Đã lưu thiết lập thành công!\nFile cấu hình đã được khóa Read-Only để chống game tự reset.",
+                      "Settings Successfully Changed!\nConfig files locked as Read-Only to prevent reset."),
+                Loc.T("Hoàn tất", "Done"));
         }
 
         private void ApplyLowBtn_Click(object sender, RoutedEventArgs e)
@@ -257,29 +313,36 @@ namespace ValorantResFix
             if (IsValorantRunning())
             {
                 var answer = MessageBox.Show(
-                    "VALORANT is currently running!\n\nPlease close VALORANT before applying changes, otherwise the game may overwrite them upon closing.\n\nDo you want to apply anyway?",
-                    "VALORANT Running",
+                    Loc.T("VALORANT hiện đang chạy!\n\nVui lòng đóng VALORANT trước khi áp dụng cấu hình.\n\nBạn có muốn tiếp tục áp dụng không?",
+                          "VALORANT is currently running!\n\nPlease close VALORANT before applying changes.\n\nDo you want to apply anyway?"),
+                    Loc.T("Cảnh báo: VALORANT đang chạy", "VALORANT Running"),
                     MessageBoxButton.YesNo,
                     MessageBoxImage.Warning);
                 if (answer != MessageBoxResult.Yes) return;
             }
 
+            // Maximum FPS competitive preset
             ScalabilityGroups sg = new ScalabilityGroups
             {
                 ResolutionQuality = 60,
-                ViewDistanceQuality = 3,
-                AntiAliasingQuality = 2,
-                ShadowQuality = 3,
-                PostProcessQuality = 3,
+                ViewDistanceQuality = 1,
+                AntiAliasingQuality = 0,
+                ShadowQuality = 0,
+                PostProcessQuality = 0,
                 TextureQuality = 0,
-                EffectsQuality = 3,
-                FoliageQuality = 3,
-                ShadingQuality = 3
+                EffectsQuality = 0,
+                FoliageQuality = 0,
+                ShadingQuality = 0,
+                GlobalIlluminationQuality = 0,
+                ReflectionQuality = 0
             };
 
             SaveChanges(sg);
 
-            MessageBox.Show("Low Settings Applied.\nNB: This is the recommended minimum quality for low-end PCs while maintaining playability.", "Done");
+            MessageBox.Show(
+                Loc.T("Đã áp dụng cấu hình tối ưu FPS thành công!\nResolution Quality đặt về 60% và toàn bộ đồ họa ở mức thấp nhất cho tất cả tài khoản.",
+                      "Low Settings Applied Successfully!\nResolution set to 60% and all graphics options set to Low for maximum FPS across all accounts."),
+                Loc.T("Hoàn tất", "Done"));
 
             ResqualityBox.Text = sg.ResolutionQuality.ToString();
             ViewDistanceQBox.Text = sg.ViewDistanceQuality.ToString();
@@ -290,6 +353,8 @@ namespace ValorantResFix
             EffectQBox.Text = sg.EffectsQuality.ToString();
             FoliageQBox.Text = sg.FoliageQuality.ToString();
             ShadingQBox.Text = sg.ShadingQuality.ToString();
+            GIQualityBox.Text = sg.GlobalIlluminationQuality.ToString();
+            ReflectionQBox.Text = sg.ReflectionQuality.ToString();
         }
 
         private void resDefBtn_Click(object sender, RoutedEventArgs e)
@@ -297,29 +362,53 @@ namespace ValorantResFix
             if (IsValorantRunning())
             {
                 var answer = MessageBox.Show(
-                    "VALORANT is currently running!\n\nPlease close VALORANT before applying changes.\n\nDo you want to restore anyway?",
-                    "VALORANT Running",
+                    Loc.T("VALORANT hiện đang chạy!\n\nVui lòng đóng VALORANT trước khi khôi phục thiết lập.\n\nBạn có muốn tiếp tục không?",
+                          "VALORANT is currently running!\n\nPlease close VALORANT before restoring settings.\n\nDo you want to restore anyway?"),
+                    Loc.T("Cảnh báo: VALORANT đang chạy", "VALORANT Running"),
                     MessageBoxButton.YesNo,
                     MessageBoxImage.Warning);
                 if (answer != MessageBoxResult.Yes) return;
             }
 
-            ScalabilityGroups sg = new ScalabilityGroups
+            ScalabilityGroups sg = new ScalabilityGroups();
+            if (backupData != null)
             {
-                ResolutionQuality = backupData.ResolutionQuality,
-                ViewDistanceQuality = backupData.ViewDistanceQuality,
-                AntiAliasingQuality = backupData.AntiAliasingQuality,
-                ShadowQuality = backupData.ShadowQuality,
-                PostProcessQuality = backupData.PostProcessQuality,
-                TextureQuality = backupData.TextureQuality,
-                EffectsQuality = backupData.EffectsQuality,
-                FoliageQuality = backupData.FoliageQuality,
-                ShadingQuality = backupData.ShadingQuality
-            };
+                sg.ResolutionQuality = backupData.ResolutionQuality;
+                sg.ViewDistanceQuality = backupData.ViewDistanceQuality;
+                sg.AntiAliasingQuality = backupData.AntiAliasingQuality;
+                sg.ShadowQuality = backupData.ShadowQuality;
+                sg.PostProcessQuality = backupData.PostProcessQuality;
+                sg.TextureQuality = backupData.TextureQuality;
+                sg.EffectsQuality = backupData.EffectsQuality;
+                sg.FoliageQuality = backupData.FoliageQuality;
+                sg.ShadingQuality = backupData.ShadingQuality;
+                sg.GlobalIlluminationQuality = backupData.GlobalIlluminationQuality;
+                sg.ReflectionQuality = backupData.ReflectionQuality;
+            }
+            else
+            {
+                // Official Default Valorant Settings
+                sg.ResolutionQuality = 100;
+                sg.ViewDistanceQuality = 3;
+                sg.AntiAliasingQuality = 3;
+                sg.ShadowQuality = 3;
+                sg.PostProcessQuality = 3;
+                sg.TextureQuality = 3;
+                sg.EffectsQuality = 3;
+                sg.FoliageQuality = 3;
+                sg.ShadingQuality = 3;
+                sg.GlobalIlluminationQuality = 3;
+                sg.ReflectionQuality = 3;
+            }
 
-            SaveChanges(sg);
+            // Save and unlock Read-Only so game can manage settings normally
+            SaveChanges(sg, true);
 
-            MessageBox.Show("Default values restored successfully.", "Done");
+            MessageBox.Show(
+                Loc.T("Đã khôi phục cài đặt gốc thành công!\n\nTất cả tài khoản đã được đưa về cấu hình ban đầu và file đã được mở khóa (bỏ Read-Only).",
+                      "Default values restored successfully!\n\nAll accounts have been reverted to original defaults, and config files have been unlocked (Read-Only removed)."),
+                Loc.T("Khôi phục hoàn tất", "Rollback Successful"),
+                MessageBoxButton.OK);
 
             ResqualityBox.Text = sg.ResolutionQuality.ToString();
             ViewDistanceQBox.Text = sg.ViewDistanceQuality.ToString();
@@ -330,10 +419,12 @@ namespace ValorantResFix
             EffectQBox.Text = sg.EffectsQuality.ToString();
             FoliageQBox.Text = sg.FoliageQuality.ToString();
             ShadingQBox.Text = sg.ShadingQuality.ToString();
+            GIQualityBox.Text = sg.GlobalIlluminationQuality.ToString();
+            ReflectionQBox.Text = sg.ReflectionQuality.ToString();
         }
 
         // helper method to save ini
-        private void SaveChanges(ScalabilityGroups sg)
+        private void SaveChanges(ScalabilityGroups sg, bool unlockReadOnly = false)
         {
             try
             {
@@ -353,6 +444,8 @@ namespace ValorantResFix
                     _iniList[i]["ScalabilityGroups"]["sg.EffectsQuality"] = sg.EffectsQuality.ToString();
                     _iniList[i]["ScalabilityGroups"]["sg.FoliageQuality"] = sg.FoliageQuality.ToString();
                     _iniList[i]["ScalabilityGroups"]["sg.ShadingQuality"] = sg.ShadingQuality.ToString();
+                    _iniList[i]["ScalabilityGroups"]["sg.GlobalIlluminationQuality"] = sg.GlobalIlluminationQuality.ToString();
+                    _iniList[i]["ScalabilityGroups"]["sg.ReflectionQuality"] = sg.ReflectionQuality.ToString();
 
                     if (i < _SG.Count)
                     {
@@ -365,6 +458,8 @@ namespace ValorantResFix
                         _SG[i].EffectsQuality = sg.EffectsQuality;
                         _SG[i].FoliageQuality = sg.FoliageQuality;
                         _SG[i].ShadingQuality = sg.ShadingQuality;
+                        _SG[i].GlobalIlluminationQuality = sg.GlobalIlluminationQuality;
+                        _SG[i].ReflectionQuality = sg.ReflectionQuality;
                     }
 
                     string filePath = _fnames[i];
@@ -380,14 +475,22 @@ namespace ValorantResFix
 
                         parser.WriteFile(filePath, _iniList[i]);
 
-                        // set read-only to prevent game from reverting custom resolution scale
-                        File.SetAttributes(filePath, attr | FileAttributes.ReadOnly);
+                        if (unlockReadOnly)
+                        {
+                            // Keep unlocked (remove Read-Only) so game can freely edit settings
+                            File.SetAttributes(filePath, attr & ~FileAttributes.ReadOnly);
+                        }
+                        else
+                        {
+                            // Set Read-Only to prevent game from reverting custom resolution scale
+                            File.SetAttributes(filePath, attr | FileAttributes.ReadOnly);
+                        }
                     }
                 }
             }
             catch (Exception ex)
             {
-                MessageBox.Show("Something went wrong while saving settings: " + ex.Message, "Error");
+                MessageBox.Show("Có lỗi xảy ra khi lưu thiết lập: " + ex.Message, "Lỗi");
                 return;
             }
         }

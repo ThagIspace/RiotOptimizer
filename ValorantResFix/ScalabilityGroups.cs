@@ -18,8 +18,8 @@ namespace ValorantResFix
         public int EffectsQuality { get; set; }
         public int FoliageQuality { get; set; }
         public int ShadingQuality { get; set; }
+        public int GlobalIlluminationQuality { get; set; }
+        public int ReflectionQuality { get; set; }
         public string FilePath { get; set; }
-
-
     }
 }

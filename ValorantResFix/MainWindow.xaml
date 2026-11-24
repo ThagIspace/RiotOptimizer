@@ -13,32 +13,148 @@
         Background="#FF151515"
         FontFamily="{DynamicResource MaterialDesignFont}" WindowStyle="None"
         mc:Ignorable="d"
-        Title="ValorantResFix" Height="478" Width="788" ResizeMode="NoResize" WindowStartupLocation="CenterScreen">
+        Title="RiotOptimizer" Height="530" Width="890" ResizeMode="NoResize" WindowStartupLocation="CenterScreen">
     <Grid>
         <Grid.RowDefinitions>
-            <RowDefinition Height="auto"/>
+            <RowDefinition Height="46"/>
             <RowDefinition Height="*"/>
-            <RowDefinition Height="auto"/>
         </Grid.RowDefinitions>
         
-        <!-- Draggable Title Bar -->
-        <Grid Grid.Row="0" Background="Transparent" MouseDown="Window_MouseDown">
-            <Image Source="Assets/rsz_val.png" Width="40" Height="40" HorizontalAlignment="Left" Margin="10 5 5 5"></Image>
-            <TextBlock Margin="10" FontSize="24" Opacity="0.7" FontWeight="SemiBold" HorizontalAlignment="Center">VR-F</TextBlock>
+        <!-- Draggable Title & Tab Navigation Bar -->
+        <Grid Grid.Row="0" Background="#FF1E1E1E" MouseDown="Window_MouseDown">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
 
-            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="2">
-                <Button Name="AboutBtn" Click="AboutBtn_Click" Foreground="White" Background="Transparent" BorderBrush="Transparent" ToolTip="About / Credits">
-                    <materialDesign:PackIcon Kind="AboutVariant"></materialDesign:PackIcon>
+            <!-- Col 0: App Brand & Title -->
+            <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center" Margin="14 0 10 0">
+                <Image Source="Assets/rsz_val.png" Width="26" Height="26" Margin="0 0 10 0"/>
+                <TextBlock Text="RiotOptimizer" FontSize="17" FontWeight="Bold" Foreground="White" VerticalAlignment="Center"/>
+            </StackPanel>
+
+            <!-- Col 1: Navigation Tabs (Centered without collision) -->
+            <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
+                <Button Name="TabValBtn" Click="TabValBtn_Click" Margin="5 0" Height="32" Background="#FF2D2D2D" BorderBrush="LightSkyBlue" BorderThickness="1.5" Foreground="White" Padding="12 0">
+                    <StackPanel Orientation="Horizontal">
+                        <materialDesign:PackIcon Kind="Target" VerticalAlignment="Center" Margin="0 0 6 0" Width="17" Height="17" Foreground="LightSkyBlue"/>
+                        <TextBlock Text="VALORANT" FontWeight="SemiBold" VerticalAlignment="Center" FontSize="12.5"/>
+                    </StackPanel>
                 </Button>
-                <Button Name="MinBtn" Click="MinBtn_Click" Foreground="White" Background="Transparent" BorderBrush="Transparent" ToolTip="Minimize">
-                    <materialDesign:PackIcon Kind="WindowMinimize"></materialDesign:PackIcon>
+                <Button Name="TabLoLBtn" Click="TabLoLBtn_Click" Margin="5 0" Height="32" Background="#FF222222" BorderBrush="Transparent" BorderThickness="1.5" Foreground="#999999" Padding="12 0">
+                    <StackPanel Orientation="Horizontal">
+                        <materialDesign:PackIcon Kind="SwordCross" VerticalAlignment="Center" Margin="0 0 6 0" Width="17" Height="17"/>
+                        <TextBlock Text="LEAGUE OF LEGENDS" FontWeight="SemiBold" VerticalAlignment="Center" FontSize="12.5"/>
+                    </StackPanel>
                 </Button>
-                <Button Name="ExitBtn" Click="ExitBtn_Click" Foreground="White" Background="Transparent" BorderBrush="Transparent" ToolTip="Close">
-                    <materialDesign:PackIcon Kind="Power"></materialDesign:PackIcon>
+            </StackPanel>
+
+            <!-- Col 2: Action & Window Controls -->
+            <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center" Margin="0 0 10 0">
+                <!-- Language Toggle Button (Anh - Việt) -->
+                <Button Name="LangBtn" Click="LangBtn_Click" Margin="0 0 6 0" Height="28" Padding="7 0" Style="{DynamicResource MaterialDesignOutlinedButton}" BorderBrush="#666666" Foreground="White" ToolTip="Đổi ngôn ngữ (Anh - Việt) / Switch Language (EN - VI)">
+                    <StackPanel Orientation="Horizontal">
+                        <materialDesign:PackIcon Kind="Translate" Width="15" Height="15" VerticalAlignment="Center" Margin="0 0 4 0"/>
+                        <TextBlock Name="LangTxt" Text="VI" VerticalAlignment="Center" FontWeight="Bold" FontSize="11"/>
+                    </StackPanel>
+                </Button>
+                <Button Name="NoticeBtn" Click="NoticeBtn_Click" Margin="0 0 8 0" Height="28" Padding="10 0" Style="{DynamicResource MaterialDesignOutlinedButton}" BorderBrush="#87CEFA" Foreground="#87CEFA" ToolTip="Lưu ý quan trọng khi sử dụng">
+                    <StackPanel Orientation="Horizontal">
+                        <materialDesign:PackIcon Kind="AlertCircleOutline" Width="16" Height="16" VerticalAlignment="Center" Margin="0 0 4 0"/>
+                        <TextBlock Text="Notice" VerticalAlignment="Center" FontWeight="SemiBold"/>
+                    </StackPanel>
+                </Button>
+                <Button Name="AboutBtn" Click="AboutBtn_Click" Width="30" Height="30" Padding="0" MinWidth="0" Foreground="#AAAAAA" Background="Transparent" BorderBrush="Transparent" Style="{DynamicResource MaterialDesignFlatButton}" ToolTip="Thông tin phần mềm">
+                    <materialDesign:PackIcon Kind="AboutVariant" Width="18" Height="18"/>
+                </Button>
+                <Button Name="MinBtn" Click="MinBtn_Click" Width="30" Height="30" Padding="0" MinWidth="0" Foreground="#AAAAAA" Background="Transparent" BorderBrush="Transparent" Style="{DynamicResource MaterialDesignFlatButton}" ToolTip="Thu nhỏ">
+                    <materialDesign:PackIcon Kind="Minus" Width="18" Height="18" VerticalAlignment="Center"/>
+                </Button>
+                <Button Name="ExitBtn" Click="ExitBtn_Click" Width="30" Height="30" Padding="0" MinWidth="0" Foreground="#FF6B6B" Background="Transparent" BorderBrush="Transparent" Style="{DynamicResource MaterialDesignFlatButton}" ToolTip="Đóng">
+                    <materialDesign:PackIcon Kind="Close" Width="18" Height="18" VerticalAlignment="Center"/>
                 </Button>
             </StackPanel>
         </Grid>
 
-        <Frame Name="MyBaseFrame" Grid.Row="1" NavigationUIVisibility="Hidden"></Frame>
+        <!-- Main Content Area -->
+        <Frame Name="MyBaseFrame" Grid.Row="1" NavigationUIVisibility="Hidden"/>
+
+        <!-- Notice Overlay Panel (Collapsed by default, shown when clicking Notice) -->
+        <Grid Name="NoticeOverlay" Grid.Row="1" Background="#E6101010" Visibility="Collapsed" Panel.ZIndex="100" MouseDown="NoticeOverlay_MouseDown">
+            <Border Background="#FF1E1E1E" CornerRadius="8" BorderBrush="#87CEFA" BorderThickness="1.5"
+                    Width="740" Height="440" HorizontalAlignment="Center" VerticalAlignment="Center"
+                    Padding="22 16">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+
+                    <!-- Header -->
+                    <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0 0 0 10">
+                        <materialDesign:PackIcon Kind="AlertDecagramOutline" Foreground="#87CEFA" Width="24" Height="24" VerticalAlignment="Center" Margin="0 0 8 0"/>
+                        <TextBlock Name="NoticeTitleTxt" Text="LƯU Ý QUAN TRỌNG KHI SỬ DỤNG" FontSize="16" FontWeight="Bold" Foreground="#87CEFA" VerticalAlignment="Center"/>
+                    </StackPanel>
+
+                    <!-- Notice Items List -->
+                    <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" Margin="0 0 0 8">
+                        <StackPanel TextElement.FontSize="12.5" TextElement.Foreground="#E0E0E0">
+                            <!-- 1 -->
+                            <Border Background="#FF252525" CornerRadius="6" Padding="12 9" Margin="0 0 0 7">
+                                <StackPanel>
+                                    <TextBlock Name="NoticeItem1Title" Text="1. Đóng game trước khi lưu hoặc áp dụng thiết lập" FontWeight="Bold" Foreground="White" Margin="0 0 0 3"/>
+                                    <TextBlock Name="NoticeItem1Body1" Text="• Hãy tắt hoàn toàn VALORANT hoặc Liên Minh Huyền Thoại trước khi bấm 'Lưu thay đổi' hoặc 'Tối ưu FPS (Low)'." TextWrapping="Wrap" Opacity="0.9"/>
+                                    <TextBlock Name="NoticeItem1Body2" Text="• Nếu game đang chạy, khi thoát ra game có thể tự động ghi đè và làm mất các tùy chỉnh vừa áp dụng." TextWrapping="Wrap" Opacity="0.9"/>
+                                </StackPanel>
+                            </Border>
+
+                            <!-- 2 -->
+                            <Border Background="#FF252525" CornerRadius="6" Padding="12 9" Margin="0 0 0 7">
+                                <StackPanel>
+                                    <TextBlock Name="NoticeItem2Title" Text="2. Cơ chế khóa file Chỉ đọc (Read-Only)" FontWeight="Bold" Foreground="White" Margin="0 0 0 3"/>
+                                    <TextBlock Name="NoticeItem2Body1" Text="• Sau khi Lưu hoặc Tối ưu FPS, phần mềm sẽ tự động bật thuộc tính Read-Only cho file cấu hình." TextWrapping="Wrap" Opacity="0.9"/>
+                                    <TextBlock Name="NoticeItem2Body2" Text="• Việc này giúp giữ nguyên tỷ lệ Resolution Quality (độ phân giải nội bộ) dưới 100% không bị game tự reset khi vào trận." TextWrapping="Wrap" Opacity="0.9"/>
+                                </StackPanel>
+                            </Border>
+
+                            <!-- 3 -->
+                            <Border Background="#FF252525" CornerRadius="6" Padding="12 9" Margin="0 0 0 7">
+                                <StackPanel>
+                                    <TextBlock Name="NoticeItem3Title" Text="3. Cách hoàn tác về mặc định (Khôi phục gốc / Rollback)" FontWeight="Bold" Foreground="White" Margin="0 0 0 3"/>
+                                    <TextBlock Name="NoticeItem3Body1" Text="• Nếu bạn muốn chỉnh lại đồ họa trong menu game như bình thường, chỉ cần bấm nút 'Khôi phục gốc'." TextWrapping="Wrap" Opacity="0.9"/>
+                                    <TextBlock Name="NoticeItem3Body2" Text="• Tool sẽ tự động mở khóa file (tắt Read-Only) và đưa toàn bộ thông số về mặc định ban đầu." TextWrapping="Wrap" Opacity="0.9"/>
+                                </StackPanel>
+                            </Border>
+
+                            <!-- 4 -->
+                            <Border Background="#FF252525" CornerRadius="6" Padding="12 9" Margin="0 0 0 7">
+                                <StackPanel>
+                                    <TextBlock Name="NoticeItem4Title" Text="4. Hỗ trợ nhiều tài khoản (VALORANT)" FontWeight="Bold" Foreground="White" Margin="0 0 0 3"/>
+                                    <TextBlock Name="NoticeItem4Body1" Text="• Ứng dụng tự động quét và đồng bộ thiết lập tối ưu cho TẤT CẢ các tài khoản VALORANT có trên máy cùng một lúc." TextWrapping="Wrap" Opacity="0.9"/>
+                                </StackPanel>
+                            </Border>
+
+                            <!-- 5 -->
+                            <Border Background="#FF252525" CornerRadius="6" Padding="12 9">
+                                <StackPanel>
+                                    <TextBlock Name="NoticeItem5Title" Text="5. Cam kết an toàn 100% (Tuân thủ Vanguard)" FontWeight="Bold" Foreground="#81C784" Margin="0 0 0 3"/>
+                                    <TextBlock Name="NoticeItem5Body1" Text="• Công cụ CHỈ chỉnh sửa các file cấu hình text (.ini / game.cfg) hợp lệ của game." TextWrapping="Wrap" Opacity="0.9"/>
+                                    <TextBlock Name="NoticeItem5Body2" Text="• Tuyệt đối KHÔNG can thiệp bộ nhớ RAM, KHÔNG inject DLL hay chỉnh sửa file game, an toàn tuyệt đối với tài khoản." TextWrapping="Wrap" Opacity="0.9"/>
+                                </StackPanel>
+                            </Border>
+                        </StackPanel>
+                    </ScrollViewer>
+
+                    <!-- Bottom Close Button -->
+                    <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0 4 0 0">
+                        <Button Name="CloseNoticeBtn" Click="CloseNoticeBtn_Click" Height="30" Padding="18 0" Style="{DynamicResource MaterialDesignRaisedButton}" Background="#87CEFA" Foreground="#FF151515" FontWeight="Bold">
+                            <TextBlock Name="CloseNoticeBtnTxt" Text="Đã hiểu &amp; Đóng"/>
+                        </Button>
+                    </StackPanel>
+                </Grid>
+            </Border>
+        </Grid>
     </Grid>
 </Window>

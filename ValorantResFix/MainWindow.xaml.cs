@@ -20,70 +20,260 @@ namespace ValorantResFix
     /// </summary>
     public partial class MainWindow : Window
     {
+        private Page _valPage = null;
+        private Page _lolPage = null;
+        private bool _isValActive = true;
+
         public MainWindow()
         {
             InitializeComponent();
+            Loc.OnLanguageChanged += ApplyLocalization;
+            ApplyLocalization();
             StartUP();
         }
 
-        private void StartUP()
+        private void LangBtn_Click(object sender, RoutedEventArgs e)
         {
-            List<string> SettingsFileList = new List<string>();
+            Loc.Toggle();
+        }
 
-            string dir = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
-            dir = System.IO.Path.Combine(dir, "VALORANT", "Saved", "Config");
+        private void ApplyLocalization()
+        {
+            LangTxt.Text = Loc.IsVi ? "VI" : "EN";
 
-            if (Directory.Exists(dir))
+            if (Loc.IsVi)
+            {
+                NoticeBtn.ToolTip = "Lưu ý quan trọng khi sử dụng";
+                AboutBtn.ToolTip = "Thông tin phần mềm";
+                MinBtn.ToolTip = "Thu nhỏ";
+                ExitBtn.ToolTip = "Đóng";
+                LangBtn.ToolTip = "Đổi ngôn ngữ (Anh - Việt)";
+
+                NoticeTitleTxt.Text = "LƯU Ý QUAN TRỌNG KHI SỬ DỤNG";
+                NoticeItem1Title.Text = "1. Đóng game trước khi lưu hoặc áp dụng thiết lập";
+                NoticeItem1Body1.Text = "• Hãy tắt hoàn toàn VALORANT hoặc Liên Minh Huyền Thoại trước khi bấm 'Lưu thay đổi' hoặc 'Tối ưu FPS (Low)'.";
+                NoticeItem1Body2.Text = "• Nếu game đang chạy, khi thoát ra game có thể tự động ghi đè và làm mất các tùy chỉnh vừa áp dụng.";
+
+                NoticeItem2Title.Text = "2. Cơ chế khóa file Chỉ đọc (Read-Only)";
+                NoticeItem2Body1.Text = "• Sau khi Lưu hoặc Tối ưu FPS, phần mềm sẽ tự động bật thuộc tính Read-Only cho file cấu hình.";
+                NoticeItem2Body2.Text = "• Việc này giúp giữ nguyên tỷ lệ Resolution Quality (độ phân giải nội bộ) dưới 100% không bị game tự reset khi vào trận.";
+
+                NoticeItem3Title.Text = "3. Cách hoàn tác về mặc định (Khôi phục gốc / Rollback)";
+                NoticeItem3Body1.Text = "• Nếu bạn muốn chỉnh lại đồ họa trong menu game như bình thường, chỉ cần bấm nút 'Khôi phục gốc'.";
+                NoticeItem3Body2.Text = "• Tool sẽ tự động mở khóa file (tắt Read-Only) và đưa toàn bộ thông số về mặc định ban đầu.";
+
+                NoticeItem4Title.Text = "4. Hỗ trợ nhiều tài khoản (VALORANT)";
+                NoticeItem4Body1.Text = "• Ứng dụng tự động quét và đồng bộ thiết lập tối ưu cho TẤT CẢ các tài khoản VALORANT có trên máy cùng một lúc.";
+
+                NoticeItem5Title.Text = "5. Cam kết an toàn 100% (Tuân thủ Vanguard)";
+                NoticeItem5Body1.Text = "• Công cụ CHỈ chỉnh sửa các file cấu hình text (.ini / game.cfg) hợp lệ của game.";
+                NoticeItem5Body2.Text = "• Tuyệt đối KHÔNG can thiệp bộ nhớ RAM, KHÔNG inject DLL hay chỉnh sửa file game, an toàn tuyệt đối với tài khoản.";
+
+                CloseNoticeBtnTxt.Text = "Đã hiểu & Đóng";
+            }
+            else
+            {
+                NoticeBtn.ToolTip = "Important usage notices";
+                AboutBtn.ToolTip = "About RiotOptimizer";
+                MinBtn.ToolTip = "Minimize";
+                ExitBtn.ToolTip = "Close";
+                LangBtn.ToolTip = "Switch Language (English / Vietnamese)";
+
+                NoticeTitleTxt.Text = "IMPORTANT USAGE NOTICES";
+                NoticeItem1Title.Text = "1. Close game before saving or applying settings";
+                NoticeItem1Body1.Text = "• Please exit VALORANT or League of Legends completely before clicking 'Save Changes' or 'Apply Low (FPS)'.";
+                NoticeItem1Body2.Text = "• If the game is running, it may overwrite your configuration upon closing.";
+
+                NoticeItem2Title.Text = "2. Read-Only file locking mechanism";
+                NoticeItem2Body1.Text = "• After Saving or Applying Low settings, the app locks the config file as Read-Only.";
+                NoticeItem2Body2.Text = "• This prevents the game from resetting custom Resolution Quality (< 100%) when loading a match.";
+
+                NoticeItem3Title.Text = "3. How to revert to defaults (Rollback)";
+                NoticeItem3Body1.Text = "• To restore original defaults and configure graphics inside the game normally, click 'Rollback Default'.";
+                NoticeItem3Body2.Text = "• The tool removes the Read-Only lock and reverts all settings back to original defaults.";
+
+                NoticeItem4Title.Text = "4. Multi-account synchronization (VALORANT)";
+                NoticeItem4Body1.Text = "• Automatically detects and applies settings to ALL VALORANT accounts installed on this PC simultaneously.";
+
+                NoticeItem5Title.Text = "5. 100% Safe & Vanguard Compliant";
+                NoticeItem5Body1.Text = "• Only modifies standard game client text configuration files (.ini / game.cfg).";
+                NoticeItem5Body2.Text = "• NEVER touches RAM, injects DLLs, or modifies binaries. Completely compliant with Riot Vanguard.";
+
+                CloseNoticeBtnTxt.Text = "Understood & Close";
+            }
+        }
+
+        public void StartUP()
+        {
+            List<string> settingsFileList = ScanAllDrives();
+
+            if (settingsFileList.Count < 1)
+            {
+                _valPage = new ErrorPage();
+            }
+            else
+            {
+                _valPage = new Home(settingsFileList);
+            }
+
+            MyBaseFrame.Navigate(_valPage);
+            UpdateTabStyles();
+        }
+
+        private void TabValBtn_Click(object sender, RoutedEventArgs e)
+        {
+            _isValActive = true;
+            UpdateTabStyles();
+            NoticeOverlay.Visibility = Visibility.Collapsed;
+            MyBaseFrame.Navigate(_valPage);
+        }
+
+        private void TabLoLBtn_Click(object sender, RoutedEventArgs e)
+        {
+            _isValActive = false;
+            UpdateTabStyles();
+            NoticeOverlay.Visibility = Visibility.Collapsed;
+            if (_lolPage == null)
+            {
+                _lolPage = new LoLPage();
+            }
+            MyBaseFrame.Navigate(_lolPage);
+        }
+
+        private void NoticeBtn_Click(object sender, RoutedEventArgs e)
+        {
+            NoticeOverlay.Visibility = (NoticeOverlay.Visibility == Visibility.Visible) 
+                ? Visibility.Collapsed 
+                : Visibility.Visible;
+        }
+
+        private void CloseNoticeBtn_Click(object sender, RoutedEventArgs e)
+        {
+            NoticeOverlay.Visibility = Visibility.Collapsed;
+        }
+
+        private void NoticeOverlay_MouseDown(object sender, MouseButtonEventArgs e)
+        {
+            if (e.OriginalSource == NoticeOverlay)
+            {
+                NoticeOverlay.Visibility = Visibility.Collapsed;
+            }
+        }
+
+        private void UpdateTabStyles()
+        {
+            Brush activeBorder = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#87CEFA")); // LightSkyBlue
+            Brush inactiveBorder = Brushes.Transparent;
+            Brush activeBg = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#FF2D2D2D"));
+            Brush inactiveBg = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#FF222222"));
+            Brush activeFg = Brushes.White;
+            Brush inactiveFg = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#999999"));
+
+            if (_isValActive)
+            {
+                TabValBtn.BorderBrush = activeBorder;
+                TabValBtn.Background = activeBg;
+                TabValBtn.Foreground = activeFg;
+
+                TabLoLBtn.BorderBrush = inactiveBorder;
+                TabLoLBtn.Background = inactiveBg;
+                TabLoLBtn.Foreground = inactiveFg;
+            }
+            else
+            {
+                TabLoLBtn.BorderBrush = activeBorder;
+                TabLoLBtn.Background = activeBg;
+                TabLoLBtn.Foreground = activeFg;
+
+                TabValBtn.BorderBrush = inactiveBorder;
+                TabValBtn.Background = inactiveBg;
+                TabValBtn.Foreground = inactiveFg;
+            }
+        }
+
+        public static List<string> ScanAllDrives()
+        {
+            List<string> found = new List<string>();
+
+            // 1. Current user LocalAppData
+            try
+            {
+                string localApp = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+                ScanDirectory(System.IO.Path.Combine(localApp, "VALORANT", "Saved", "Config"), found);
+            }
+            catch {}
+
+            // 2. Other user profiles under C:\Users\*
+            try
+            {
+                string userProfile = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+                string usersDir = System.IO.Path.GetDirectoryName(userProfile);
+                if (Directory.Exists(usersDir))
+                {
+                    foreach (var uDir in Directory.GetDirectories(usersDir))
+                    {
+                        string testPath = System.IO.Path.Combine(uDir, "AppData", "Local", "VALORANT", "Saved", "Config");
+                        ScanDirectory(testPath, found);
+                    }
+                }
+            }
+            catch {}
+
+            // 3. Scan all fixed drives
+            try
+            {
+                foreach (var drive in DriveInfo.GetDrives())
+                {
+                    if (drive.IsReady && drive.DriveType == DriveType.Fixed)
+                    {
+                        string[] candidates = new string[]
+                        {
+                            System.IO.Path.Combine(drive.RootDirectory.FullName, "VALORANT", "Saved", "Config"),
+                            System.IO.Path.Combine(drive.RootDirectory.FullName, "Riot Games", "VALORANT", "Saved", "Config"),
+                            System.IO.Path.Combine(drive.RootDirectory.FullName, "Games", "VALORANT", "Saved", "Config")
+                        };
+
+                        foreach (var cand in candidates)
+                        {
+                            ScanDirectory(cand, found);
+                        }
+                    }
+                }
+            }
+            catch {}
+
+            return found.Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+        }
+
+        private static void ScanDirectory(string dir, List<string> results)
+        {
+            if (string.IsNullOrWhiteSpace(dir) || !Directory.Exists(dir)) return;
+
+            try
+            {
+                string[] files = Directory.GetFiles(dir, "GameUserSettings.ini", SearchOption.AllDirectories);
+                foreach (var f in files)
+                {
+                    string lower = f.ToLower();
+                    if (!lower.Contains("crashreportclient") && !lower.Contains("backup"))
+                    {
+                        results.Add(f);
+                    }
+                }
+            }
+            catch
             {
                 try
                 {
-                    // Find all GameUserSettings.ini under VALORANT/Saved/Config
-                    // Supports both modern WindowsClient and legacy Windows paths across all accounts
-                    string[] iniFiles = Directory.GetFiles(dir, "GameUserSettings.ini", SearchOption.AllDirectories);
-                    foreach (var file in iniFiles)
+                    foreach (var sub in Directory.GetDirectories(dir))
                     {
-                        string lower = file.ToLower();
-                        if (!lower.Contains("crashreportclient") && !lower.Contains("backup"))
-                        {
-                            SettingsFileList.Add(file);
-                        }
+                        string c1 = System.IO.Path.Combine(sub, "WindowsClient", "GameUserSettings.ini");
+                        string c2 = System.IO.Path.Combine(sub, "Windows", "GameUserSettings.ini");
+                        if (File.Exists(c1)) results.Add(c1);
+                        else if (File.Exists(c2)) results.Add(c2);
                     }
                 }
-                catch
-                {
-                    // Fallback to folder enumeration if recursive search encounters an issue
-                    string[] users = Directory.GetDirectories(dir);
-                    foreach (var u in users)
-                    {
-                        string winClient = System.IO.Path.Combine(u, "WindowsClient", "GameUserSettings.ini");
-                        string winLegacy = System.IO.Path.Combine(u, "Windows", "GameUserSettings.ini");
-
-                        if (File.Exists(winClient))
-                        {
-                            SettingsFileList.Add(winClient);
-                        }
-                        else if (File.Exists(winLegacy))
-                        {
-                            SettingsFileList.Add(winLegacy);
-                        }
-                    }
-                }
-
-                // Remove duplicate paths (case-insensitive)
-                SettingsFileList = SettingsFileList.Distinct(StringComparer.OrdinalIgnoreCase).ToList();
-
-                if (SettingsFileList.Count < 1) // if No GameSettings File found
-                {
-                    MyBaseFrame.Navigate(new ErrorPage());
-                }
-                else
-                {
-                    MyBaseFrame.Navigate(new Home(SettingsFileList));
-                }
-            }
-            else // if Valorant folder is not found in AppData Dir
-            {
-                MyBaseFrame.Navigate(new ErrorPage());
+                catch {}
             }
         }
 
@@ -105,16 +295,40 @@ namespace ValorantResFix
 
         private void AboutBtn_Click(object sender, RoutedEventArgs e)
         {
-            MessageBox.Show(
-                "ValorantResFix v2.0\n\n" +
-                "A lightweight utility to adjust internal graphics & resolution scale for VALORANT to boost FPS on low-end hardware.\n\n" +
-                "Author / Credits:\n" +
-                "• Original Creator: xFahim (https://github.com/xFahim/ValorantResFix)\n" +
-                "• Maintained & Updated by: ThagIspace (https://github.com/ThagIspace/ValorantResFix)\n\n" +
-                "Safe & Vanguard compliant (client config modification only).",
-                "About ValorantResFix",
-                MessageBoxButton.OK,
-                MessageBoxImage.Information);
+            if (Loc.IsVi)
+            {
+                MessageBox.Show(
+                    "RiotOptimizer v2.5\n\n" +
+                    "Công cụ mã nguồn mở tối ưu FPS tất cả-trong-một cho VALORANT và Liên Minh Huyền Thoại.\n\n" +
+                    "Tính năng chính:\n" +
+                    "• VALORANT: Hạ độ phân giải nội bộ (Resolution Quality), chỉnh đầy đủ thông số đồ họa, đồng bộ tự động tất cả tài khoản.\n" +
+                    "• Liên Minh Huyền Thoại: Cấu hình giảm trễ input tối đa, tắt ánh sáng mặt trời/sinh vật cảnh, tối ưu giao diện HUD.\n" +
+                    "• Khôi phục gốc (Rollback) 1-click cho cả 2 tựa game.\n\n" +
+                    "Tác giả & Đóng góp:\n" +
+                    "• Tác giả gốc: xFahim (https://github.com/xFahim/ValorantResFix)\n" +
+                    "• Phát triển & Mở rộng: ThagIspace (https://github.com/ThagIspace/RiotOptimizer)\n\n" +
+                    "100% An toàn, tuân thủ Riot Vanguard (chỉ can thiệp cấu hình client).",
+                    "Thông tin phần mềm - RiotOptimizer",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Information);
+            }
+            else
+            {
+                MessageBox.Show(
+                    "RiotOptimizer v2.5\n\n" +
+                    "An open-source all-in-one optimizer for Riot Games titles (VALORANT & League of Legends).\n\n" +
+                    "Key Features:\n" +
+                    "• VALORANT: Internal resolution scaling, all scalability groups, automatic multi-account sync.\n" +
+                    "• League of Legends: Low-latency presets, godrays/eyecandy removal, HUD optimizations.\n" +
+                    "• 1-Click Rollback for both games.\n\n" +
+                    "Credits:\n" +
+                    "• Original Creator: xFahim (https://github.com/xFahim/ValorantResFix)\n" +
+                    "• Maintained & Expanded by: ThagIspace (https://github.com/ThagIspace/RiotOptimizer)\n\n" +
+                    "Safe & Vanguard compliant (client configuration tuning only).",
+                    "About RiotOptimizer",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Information);
+            }
         }
     }
 }
