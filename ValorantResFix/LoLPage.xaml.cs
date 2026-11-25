@@ -215,13 +215,10 @@ namespace ValorantResFix
         {
             try
             {
-                _cfgPath = path;
-                PathBox.Text = path;
-
-                _iniData = _parser.ReadFile(path, Encoding.Default);
+                var loadedData = _parser.ReadFile(path, Encoding.Default);
 
                 // Performance
-                var perf = _iniData["Performance"];
+                var perf = loadedData["Performance"];
                 int shadow = perf != null ? ParseInt(perf["ShadowQuality"], 0) : 0;
                 int character = perf != null ? ParseInt(perf["CharacterQuality"], 1) : 1;
                 int env = perf != null ? ParseInt(perf["EnvironmentQuality"], 1) : 1;
@@ -238,7 +235,7 @@ namespace ValorantResFix
                 DisableHUDAnimCheck.IsChecked = (hudAnim == 0);
 
                 // General
-                var general = _iniData["General"];
+                var general = loadedData["General"];
                 int winMode = general != null ? ParseInt(general["WindowMode"], 0) : 0;
                 int vsync = general != null ? ParseInt(general["WaitForVerticalSync"], 0) : 0;
                 int godray = general != null ? ParseInt(general["ShowGodray"], 0) : 0;
@@ -254,12 +251,18 @@ namespace ValorantResFix
                 DisableVSyncCheck.IsChecked = (vsync == 0);
 
                 // HUD
-                var hud = _iniData["HUD"];
+                var hud = loadedData["HUD"];
                 int eternals = hud != null ? ParseInt(hud["EternalsMilestoneDisplayMode"], 0) : 0;
                 DisableEternalsCheck.IsChecked = (eternals == 0);
+                _iniData = loadedData;
+                _cfgPath = path;
+                PathBox.Text = path;
             }
             catch (Exception ex)
             {
+                _cfgPath = null;
+                _iniData = null;
+                PathBox.Text = Loc.T("Không thể đọc file. Vui lòng chọn lại.", "Unable to read file. Please select it again.");
                 MessageBox.Show("Lỗi đọc file game.cfg: " + ex.Message, "Lỗi");
             }
         }
@@ -447,17 +450,23 @@ namespace ValorantResFix
                     MessageBox.Show(Loc.T("Không tìm thấy bản sao lưu cho file này.", "No backup exists for this file."), Loc.T("Lỗi", "Error"));
                     return;
                 }
+                var answer = MessageBox.Show(
+                    Loc.T("Khôi phục sẽ ghi đè toàn bộ file cấu hình bằng bản sao lưu. Các thay đổi khác trong game sau khi sao lưu sẽ bị mất. Tiếp tục?",
+                          "Restoring replaces the entire configuration file with its backup. Other in-game changes made after the backup will be lost. Continue?"),
+                    Loc.T("Xác nhận khôi phục", "Confirm restore"), MessageBoxButton.YesNo, MessageBoxImage.Warning);
+                if (answer != MessageBoxResult.Yes) return;
                 var attr = File.GetAttributes(_cfgPath);
-                if ((attr & FileAttributes.ReadOnly) == FileAttributes.ReadOnly)
-                {
-                    File.SetAttributes(_cfgPath, attr & ~FileAttributes.ReadOnly);
-                }
-
-                File.Copy(backupPath, _cfgPath, true);
-
-                // Remove Read-Only attribute
-                attr = File.GetAttributes(_cfgPath);
                 File.SetAttributes(_cfgPath, attr & ~FileAttributes.ReadOnly);
+                try
+                {
+                    File.Copy(backupPath, _cfgPath, true);
+                    File.SetAttributes(_cfgPath, File.GetAttributes(_cfgPath) & ~FileAttributes.ReadOnly);
+                }
+                catch
+                {
+                    if (File.Exists(_cfgPath)) File.SetAttributes(_cfgPath, attr);
+                    throw;
+                }
 
                 LoadConfig(_cfgPath);
                 MessageBox.Show(

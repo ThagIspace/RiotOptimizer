@@ -351,33 +351,53 @@ namespace ValorantResFix
                 if (answer != MessageBoxResult.Yes) return;
             }
 
-            try
+            var missing = _SG.Where(item => !File.Exists(GetBackupPath(item.FilePath))).Select(item => item.FilePath).ToList();
+            var available = _SG.Where(item => File.Exists(GetBackupPath(item.FilePath))).ToList();
+            if (available.Count == 0)
             {
-                foreach (var item in _SG)
+                MessageBox.Show(Loc.T("Không có bản sao lưu cho các file đã tìm thấy.", "No backups exist for the detected files."), Loc.T("Lỗi", "Error"));
+                return;
+            }
+            string warning = Loc.T(
+                "Khôi phục sẽ ghi đè toàn bộ file cấu hình bằng bản sao lưu. Các thay đổi khác trong game sau khi sao lưu sẽ bị mất.",
+                "Restoring replaces the entire configuration file with its backup. Other in-game changes made after the backup will be lost.");
+            if (missing.Count > 0)
+                warning += Loc.T("\n\nCác file không có bản sao lưu sẽ được bỏ qua:\n", "\n\nFiles without backups will be skipped:\n") + string.Join("\n", missing);
+            if (MessageBox.Show(warning, Loc.T("Xác nhận khôi phục", "Confirm restore"), MessageBoxButton.YesNo, MessageBoxImage.Warning) != MessageBoxResult.Yes) return;
+
+            var errors = new List<string>();
+            int restored = 0;
+            foreach (var item in available)
+            {
+                string path = item.FilePath;
+                try
                 {
-                    if (!File.Exists(GetBackupPath(item.FilePath)))
-                    {
-                        MessageBox.Show("Không tìm thấy bản sao lưu cho: " + item.FilePath, "Lỗi");
-                        return;
-                    }
-                }
-                foreach (var item in _SG)
-                {
-                    string path = item.FilePath;
                     var attr = File.GetAttributes(path);
                     File.SetAttributes(path, attr & ~FileAttributes.ReadOnly);
-                    File.Copy(GetBackupPath(path), path, true);
-                    File.SetAttributes(path, File.GetAttributes(path) & ~FileAttributes.ReadOnly);
+                    try
+                    {
+                        File.Copy(GetBackupPath(path), path, true);
+                        File.SetAttributes(path, File.GetAttributes(path) & ~FileAttributes.ReadOnly);
+                        restored++;
+                    }
+                    catch
+                    {
+                        if (File.Exists(path)) File.SetAttributes(path, attr);
+                        throw;
+                    }
                 }
-                _SG.Clear();
-                _iniList.Clear();
-                StartUP();
-                MessageBox.Show(Loc.T("Đã khôi phục cấu hình đã sao lưu và mở khóa file.", "Backed-up settings restored and files unlocked."), Loc.T("Hoàn tất", "Done"));
+                catch (Exception ex)
+                {
+                    errors.Add(path + ": " + ex.Message);
+                }
             }
-            catch (Exception ex)
-            {
-                MessageBox.Show("Lỗi khôi phục cấu hình: " + ex.Message, "Lỗi");
-            }
+            _SG.Clear();
+            _iniList.Clear();
+            StartUP();
+            string result = Loc.T("Đã khôi phục: ", "Restored: ") + restored + "/" + available.Count;
+            if (missing.Count > 0) result += Loc.T("\nKhông có bản sao lưu: ", "\nMissing backups: ") + missing.Count;
+            if (errors.Count > 0) result += Loc.T("\nLỗi:\n", "\nErrors:\n") + string.Join("\n", errors);
+            MessageBox.Show(result, Loc.T("Kết quả khôi phục", "Restore result"));
         }
 
         // helper method to save ini
