@@ -17,12 +17,15 @@ jobs:
           persist-credentials: false
           fetch-depth: 2
       - name: Build original and candidate on Windows
+        id: windows-build
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
           $PSNativeCommandUseErrorActionPreference = $false
-          Write-Host "Windows $([Environment]::OSVersion.Version), baseline $(git rev-parse HEAD^)"
-          if ((git rev-parse HEAD^) -ne '619fc9fb9609e5fd4389d951634e1045a2523f2b') { throw 'Wrong baseline' }
+          $base = '619fc9fb9609e5fd4389d951634e1045a2523f2b'
+          Write-Host "Windows $([Environment]::OSVersion.Version), baseline $base"
+          git diff --quiet $base HEAD -- ValorantResFix ValorantResFix.sln packages
+          if ($LASTEXITCODE -ne 0) { throw 'Wrong baseline source' }
           $vswhere = Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio\Installer\vswhere.exe'
           $msbuild = & $vswhere -latest -products '*' -requires Microsoft.Component.MSBuild -find 'MSBuild\Current\Bin\MSBuild.exe' | Select-Object -First 1
           if (-not $msbuild) { throw 'No MSBuild executable' }
@@ -54,6 +57,48 @@ jobs:
           $flags = [Reflection.BindingFlags]'Static,NonPublic'
           $save = $config.GetMethod('Save', $flags)
           $restore = $config.GetMethod('Restore', $flags)
+          $parserDll = Join-Path ([IO.Path]::GetDirectoryName($exe)) 'INIFileParser.dll'
+          [void][Reflection.Assembly]::LoadFrom($parserDll)
+          Add-Type -ReferencedAssemblies $parserDll -TypeDefinition @'
+          using System;
+          using System.IO;
+          using System.Reflection;
+          using IniParser;
+
+          public static class WindowsQaBridge
+          {
+              public static void Save(MethodInfo method, string path, string backup, string value, bool fail)
+              {
+                  Action<string> write = temp => {
+                      File.WriteAllText(temp, value);
+                      if (fail) throw new IOException("injected write failure");
+                  };
+                  method.Invoke(null, new object[] { path, backup, write });
+              }
+
+              public static void Restore(MethodInfo method, string path, string backup)
+              {
+                  method.Invoke(null, new object[] { path, backup });
+              }
+
+              public static bool ReproducesLoss(MethodInfo method, string path, string backup)
+              {
+                  string input = "[General]\nExternalDirective\nCustomSetting=First\nCustomSetting=Last\n[Performance]\nShadowQuality=4\n";
+                  File.WriteAllText(path, input);
+                  var parser = new FileIniDataParser();
+                  parser.Parser.Configuration.SkipInvalidLines = true;
+                  parser.Parser.Configuration.AllowDuplicateKeys = true;
+                  parser.Parser.Configuration.OverrideDuplicateKeys = true;
+                  var ini = parser.ReadFile(path, System.Text.Encoding.Default);
+                  ini["Performance"]["ShadowQuality"] = "0";
+                  Action<string> write = temp => parser.WriteFile(temp, ini, System.Text.Encoding.Default);
+                  method.Invoke(null, new object[] { path, backup, write });
+                  string result = File.ReadAllText(path);
+                  return !result.Contains("ExternalDirective") && !result.Contains("First") && result.Contains("Last") &&
+                      File.ReadAllText(backup) == input;
+              }
+          }
+          '@
           $root = Join-Path $env:RUNNER_TEMP ('RiotOptimizer-NTFS-' + [Guid]::NewGuid().ToString('N'))
           $drive = [IO.DriveInfo]::new([IO.Path]::GetPathRoot($root))
           if ($drive.DriveFormat -ne 'NTFS') { throw "Unexpected filesystem $($drive.DriveFormat)" }
@@ -64,8 +109,7 @@ jobs:
             Write-Host "PASS $name"
           }
           function Invoke-Save([string]$content) {
-            $writer = [Action[string]]{ param($temp) [IO.File]::WriteAllText($temp, $content) }
-            [void]$save.Invoke($null, [object[]]@($path, $backup, $writer))
+            [WindowsQaBridge]::Save($save, $path, $backup, $content, $false)
           }
           function Is-ReadOnly {
             return ([IO.File]::GetAttributes($path).HasFlag([IO.FileAttributes]::ReadOnly))
@@ -77,9 +121,8 @@ jobs:
             Assert (([IO.File]::ReadAllText($path) -eq 'first') -and (Is-ReadOnly) -and ([IO.File]::ReadAllText($backup) -eq 'original')) 'first save creates original backup and locks file'
             Invoke-Save 'second'
             Assert (([IO.File]::ReadAllText($path) -eq 'second') -and (Is-ReadOnly) -and ([IO.File]::ReadAllText($backup) -eq 'original')) 'repeat save preserves first backup'
-            $writer = [Action[string]]{ param($temp) [IO.File]::WriteAllText($temp, 'partial'); throw 'injected write failure' }
             $failed = $false
-            try { [void]$save.Invoke($null, [object[]]@($path, $backup, $writer)) } catch { $failed = $true }
+            try { [WindowsQaBridge]::Save($save, $path, $backup, 'partial', $true) } catch { $failed = $true }
             Assert ($failed -and ([IO.File]::ReadAllText($path) -eq 'second') -and (Is-ReadOnly)) 'interrupted write leaves config intact'
             $held = [IO.File]::Open($path, 'Open', 'Read', 'Read')
             try {
@@ -90,23 +133,36 @@ jobs:
             [IO.File]::SetAttributes($path, 'Normal')
             [IO.File]::WriteAllText($path, '[broken')
             [IO.File]::SetAttributes($path, 'ReadOnly')
-            [void]$restore.Invoke($null, [object[]]@($path, $backup))
+            [WindowsQaBridge]::Restore($restore, $path, $backup)
             Assert (([IO.File]::ReadAllText($path) -eq 'original') -and -not (Is-ReadOnly)) 'restore replaces and unlocks malformed file'
             [IO.Directory]::Delete([IO.Path]::GetDirectoryName($path), $true)
-            [void]$restore.Invoke($null, [object[]]@($path, $backup))
+            [WindowsQaBridge]::Restore($restore, $path, $backup)
             Assert (([IO.File]::ReadAllText($path) -eq 'original') -and -not (Is-ReadOnly)) 'restore recreates missing file and parent'
+            $lol = Join-Path $root 'game.cfg'
+            $lolBackup = Join-Path $root 'backup\lol.bak'
+            if ([WindowsQaBridge]::ReproducesLoss($save, $lol, $lolBackup)) {
+              Write-Host 'CONFIRMED League rewrite drops unparsed lines and earlier duplicate values'
+            } else {
+              throw 'The League config fixture produced an unexpected result'
+            }
           } finally {
             if ([IO.File]::Exists($path)) { [IO.File]::SetAttributes($path, 'Normal') }
             if ([IO.Directory]::Exists($root)) { Remove-Item -LiteralPath $root -Recurse -Force }
           }
       - name: Smoke test WPF startup
+        if: ${{ always() && steps.windows-build.outcome == 'success' }}
         shell: pwsh
         run: |
           $exe = Join-Path $env:RUNNER_TEMP 'RiotOptimizer-QA\RiotOptimizer.exe'
           $app = Start-Process -FilePath $exe -PassThru
           try {
             $ready = $app.WaitForInputIdle(15000)
-            $app.Refresh()
+            $deadline = [DateTime]::UtcNow.AddSeconds(10)
+            do {
+              $app.Refresh()
+              if ($app.HasExited -or $app.MainWindowHandle -ne 0) { break }
+              Start-Sleep -Milliseconds 250
+            } while ([DateTime]::UtcNow -lt $deadline)
             if (-not $ready -or $app.HasExited -or $app.MainWindowHandle -eq 0) { throw 'RiotOptimizer main window did not become ready' }
             Write-Host "PASS main WPF window started: $($app.MainWindowTitle)"
           } finally {
