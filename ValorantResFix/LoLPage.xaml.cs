@@ -27,11 +27,13 @@ namespace ValorantResFix
         private FileIniDataParser _parser = new FileIniDataParser();
         private IniData _iniData = null;
 
-        private string BackupFilePath
+        private string GetBackupPath(string path)
         {
-            get
+            string dir = System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "RiotOptimizer", "Backups");
+            using (var sha = System.Security.Cryptography.SHA256.Create())
             {
-                return System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Backup_LoL.cfg");
+                byte[] hash = sha.ComputeHash(Encoding.UTF8.GetBytes(System.IO.Path.GetFullPath(path).ToUpperInvariant()));
+                return System.IO.Path.Combine(dir, BitConverter.ToString(hash).Replace("-", "") + ".lol.bak");
             }
         }
 
@@ -217,13 +219,6 @@ namespace ValorantResFix
                 PathBox.Text = path;
 
                 _iniData = _parser.ReadFile(path, Encoding.Default);
-
-                // Create backup if not exists
-                string backupPath = BackupFilePath;
-                if (!File.Exists(backupPath))
-                {
-                    File.Copy(path, backupPath, true);
-                }
 
                 // Performance
                 var perf = _iniData["Performance"];
@@ -446,28 +441,19 @@ namespace ValorantResFix
 
             try
             {
-                string backupPath = BackupFilePath;
+                string backupPath = GetBackupPath(_cfgPath);
+                if (!File.Exists(backupPath))
+                {
+                    MessageBox.Show(Loc.T("Không tìm thấy bản sao lưu cho file này.", "No backup exists for this file."), Loc.T("Lỗi", "Error"));
+                    return;
+                }
                 var attr = File.GetAttributes(_cfgPath);
                 if ((attr & FileAttributes.ReadOnly) == FileAttributes.ReadOnly)
                 {
                     File.SetAttributes(_cfgPath, attr & ~FileAttributes.ReadOnly);
                 }
 
-                if (File.Exists(backupPath))
-                {
-                    File.Copy(backupPath, _cfgPath, true);
-                }
-                else
-                {
-                    // Fallback default
-                    SaveLoLConfig(
-                        shadow: 1, character: 2, env: 2, fx: 2,
-                        winMode: 0,
-                        disableGodray: false, hideEyeCandy: false,
-                        disableHUDAnim: false, disableFXAA: false,
-                        disableEternals: false, disableVSync: true,
-                        unlockReadOnly: true);
-                }
+                File.Copy(backupPath, _cfgPath, true);
 
                 // Remove Read-Only attribute
                 attr = File.GetAttributes(_cfgPath);
@@ -516,6 +502,9 @@ namespace ValorantResFix
             if (_iniData["HUD"] == null) _iniData.Sections.AddSection("HUD");
             _iniData["HUD"]["EternalsMilestoneDisplayMode"] = disableEternals ? "0" : "2";
 
+            string backupPath = GetBackupPath(_cfgPath);
+            Directory.CreateDirectory(System.IO.Path.GetDirectoryName(backupPath));
+            if (!File.Exists(backupPath)) File.Copy(_cfgPath, backupPath);
             var attr = File.GetAttributes(_cfgPath);
             if ((attr & FileAttributes.ReadOnly) == FileAttributes.ReadOnly)
             {

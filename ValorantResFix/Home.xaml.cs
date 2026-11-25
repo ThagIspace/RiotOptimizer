@@ -26,17 +26,18 @@ namespace ValorantResFix
     {
         private List<string> _fnames = new List<string>();
         private List<ScalabilityGroups> _SG = new List<ScalabilityGroups>();
-        private ScalabilityGroups backupData = new ScalabilityGroups();
 
         // ini parser
         private FileIniDataParser parser = new FileIniDataParser();
         private List<IniData> _iniList = new List<IniData>();
 
-        private string BackupFilePath
+        private string GetBackupPath(string path)
         {
-            get
+            string dir = System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "RiotOptimizer", "Backups");
+            using (var sha = System.Security.Cryptography.SHA256.Create())
             {
-                return System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Backup.dat");
+                byte[] hash = sha.ComputeHash(Encoding.UTF8.GetBytes(System.IO.Path.GetFullPath(path).ToUpperInvariant()));
+                return System.IO.Path.Combine(dir, BitConverter.ToString(hash).Replace("-", "") + ".valorant.bak");
             }
         }
 
@@ -172,26 +173,6 @@ namespace ValorantResFix
                 ReflectionQBox.Text = _SG[0].ReflectionQuality.ToString();
             }
 
-            // check backup 
-            string backupPath = BackupFilePath;
-            if (File.Exists(backupPath))
-            {
-                backupData = (ScalabilityGroups)Shelper.DeserializeObj(backupPath);
-
-                if (backupData == null)
-                {
-                    Shelper.SerializeObj(_SG[0], backupPath);
-                    backupData = _SG[0];
-                }
-            }
-            else // writes backup
-            {
-                if (Shelper.SerializeObj(_SG[0], backupPath) == 1)
-                {
-                    backupData = _SG[0];
-                }
-            }
-
             LoadGrid.Visibility = Visibility.Collapsed;
         }
 
@@ -301,7 +282,7 @@ namespace ValorantResFix
                 return;
             }
 
-            SaveChanges(sg);
+            if (!SaveChanges(sg)) return;
             MessageBox.Show(
                 Loc.T("Đã lưu thiết lập thành công!\nFile cấu hình đã được khóa Read-Only để chống game tự reset.",
                       "Settings Successfully Changed!\nConfig files locked as Read-Only to prevent reset."),
@@ -337,7 +318,7 @@ namespace ValorantResFix
                 ReflectionQuality = 0
             };
 
-            SaveChanges(sg);
+            if (!SaveChanges(sg)) return;
 
             MessageBox.Show(
                 Loc.T("Đã áp dụng cấu hình tối ưu FPS thành công!\nResolution Quality đặt về 60% và toàn bộ đồ họa ở mức thấp nhất cho tất cả tài khoản.",
@@ -370,61 +351,37 @@ namespace ValorantResFix
                 if (answer != MessageBoxResult.Yes) return;
             }
 
-            ScalabilityGroups sg = new ScalabilityGroups();
-            if (backupData != null)
+            try
             {
-                sg.ResolutionQuality = backupData.ResolutionQuality;
-                sg.ViewDistanceQuality = backupData.ViewDistanceQuality;
-                sg.AntiAliasingQuality = backupData.AntiAliasingQuality;
-                sg.ShadowQuality = backupData.ShadowQuality;
-                sg.PostProcessQuality = backupData.PostProcessQuality;
-                sg.TextureQuality = backupData.TextureQuality;
-                sg.EffectsQuality = backupData.EffectsQuality;
-                sg.FoliageQuality = backupData.FoliageQuality;
-                sg.ShadingQuality = backupData.ShadingQuality;
-                sg.GlobalIlluminationQuality = backupData.GlobalIlluminationQuality;
-                sg.ReflectionQuality = backupData.ReflectionQuality;
+                foreach (var item in _SG)
+                {
+                    if (!File.Exists(GetBackupPath(item.FilePath)))
+                    {
+                        MessageBox.Show("Không tìm thấy bản sao lưu cho: " + item.FilePath, "Lỗi");
+                        return;
+                    }
+                }
+                foreach (var item in _SG)
+                {
+                    string path = item.FilePath;
+                    var attr = File.GetAttributes(path);
+                    File.SetAttributes(path, attr & ~FileAttributes.ReadOnly);
+                    File.Copy(GetBackupPath(path), path, true);
+                    File.SetAttributes(path, File.GetAttributes(path) & ~FileAttributes.ReadOnly);
+                }
+                _SG.Clear();
+                _iniList.Clear();
+                StartUP();
+                MessageBox.Show(Loc.T("Đã khôi phục cấu hình đã sao lưu và mở khóa file.", "Backed-up settings restored and files unlocked."), Loc.T("Hoàn tất", "Done"));
             }
-            else
+            catch (Exception ex)
             {
-                // Official Default Valorant Settings
-                sg.ResolutionQuality = 100;
-                sg.ViewDistanceQuality = 3;
-                sg.AntiAliasingQuality = 3;
-                sg.ShadowQuality = 3;
-                sg.PostProcessQuality = 3;
-                sg.TextureQuality = 3;
-                sg.EffectsQuality = 3;
-                sg.FoliageQuality = 3;
-                sg.ShadingQuality = 3;
-                sg.GlobalIlluminationQuality = 3;
-                sg.ReflectionQuality = 3;
+                MessageBox.Show("Lỗi khôi phục cấu hình: " + ex.Message, "Lỗi");
             }
-
-            // Save and unlock Read-Only so game can manage settings normally
-            SaveChanges(sg, true);
-
-            MessageBox.Show(
-                Loc.T("Đã khôi phục cài đặt gốc thành công!\n\nTất cả tài khoản đã được đưa về cấu hình ban đầu và file đã được mở khóa (bỏ Read-Only).",
-                      "Default values restored successfully!\n\nAll accounts have been reverted to original defaults, and config files have been unlocked (Read-Only removed)."),
-                Loc.T("Khôi phục hoàn tất", "Rollback Successful"),
-                MessageBoxButton.OK);
-
-            ResqualityBox.Text = sg.ResolutionQuality.ToString();
-            ViewDistanceQBox.Text = sg.ViewDistanceQuality.ToString();
-            AntiAliasisBox.Text = sg.AntiAliasingQuality.ToString();
-            ShadowQBox.Text = sg.ShadowQuality.ToString();
-            PostProcessBox.Text = sg.PostProcessQuality.ToString();
-            TextureQBox.Text = sg.TextureQuality.ToString();
-            EffectQBox.Text = sg.EffectsQuality.ToString();
-            FoliageQBox.Text = sg.FoliageQuality.ToString();
-            ShadingQBox.Text = sg.ShadingQuality.ToString();
-            GIQualityBox.Text = sg.GlobalIlluminationQuality.ToString();
-            ReflectionQBox.Text = sg.ReflectionQuality.ToString();
         }
 
         // helper method to save ini
-        private void SaveChanges(ScalabilityGroups sg, bool unlockReadOnly = false)
+        private bool SaveChanges(ScalabilityGroups sg)
         {
             try
             {
@@ -462,9 +419,12 @@ namespace ValorantResFix
                         _SG[i].ReflectionQuality = sg.ReflectionQuality;
                     }
 
-                    string filePath = _fnames[i];
+                    string filePath = _SG[i].FilePath;
                     if (File.Exists(filePath))
                     {
+                        string backup = GetBackupPath(filePath);
+                        Directory.CreateDirectory(System.IO.Path.GetDirectoryName(backup));
+                        if (!File.Exists(backup)) File.Copy(filePath, backup);
                         var attr = File.GetAttributes(filePath);
 
                         // unset read-only before writing
@@ -475,23 +435,19 @@ namespace ValorantResFix
 
                         parser.WriteFile(filePath, _iniList[i]);
 
-                        if (unlockReadOnly)
-                        {
-                            // Keep unlocked (remove Read-Only) so game can freely edit settings
-                            File.SetAttributes(filePath, attr & ~FileAttributes.ReadOnly);
-                        }
-                        else
-                        {
-                            // Set Read-Only to prevent game from reverting custom resolution scale
-                            File.SetAttributes(filePath, attr | FileAttributes.ReadOnly);
-                        }
+                        File.SetAttributes(filePath, attr | FileAttributes.ReadOnly);
+                    }
+                    else
+                    {
+                        throw new FileNotFoundException("Không tìm thấy file cấu hình", filePath);
                     }
                 }
+                return true;
             }
             catch (Exception ex)
             {
                 MessageBox.Show("Có lỗi xảy ra khi lưu thiết lập: " + ex.Message, "Lỗi");
-                return;
+                return false;
             }
         }
     }
