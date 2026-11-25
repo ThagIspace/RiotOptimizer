@@ -201,6 +201,8 @@ namespace ValorantResFix
         private int ParseInt(string val, int defaultVal)
         {
             if (string.IsNullOrWhiteSpace(val)) return defaultVal;
+            int comment = val.IndexOf(';');
+            if (comment >= 0) val = val.Substring(0, comment);
             decimal res;
             if (decimal.TryParse(val, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out res))
             {
@@ -482,30 +484,30 @@ namespace ValorantResFix
             bool disableGodray, bool hideEyeCandy, bool disableHUDAnim,
             bool disableFXAA, bool disableEternals, bool disableVSync)
         {
-            var currentData = _parser.ReadFile(_cfgPath, Encoding.Default);
-
-            // [Performance]
-            if (currentData["Performance"] == null) currentData.Sections.AddSection("Performance");
-            currentData["Performance"]["ShadowQuality"] = shadow.ToString();
-            currentData["Performance"]["CharacterQuality"] = character.ToString();
-            currentData["Performance"]["EnvironmentQuality"] = env.ToString();
-            currentData["Performance"]["EffectsQuality"] = fx.ToString();
-            currentData["Performance"]["EnableFXAA"] = disableFXAA ? "0" : "1";
-            currentData["Performance"]["EnableHUDAnimations"] = disableHUDAnim ? "0" : "1";
-
-            // [General]
-            if (currentData["General"] == null) currentData.Sections.AddSection("General");
-            currentData["General"]["WindowMode"] = winMode.ToString();
-            currentData["General"]["WaitForVerticalSync"] = disableVSync ? "0" : "1";
-            currentData["General"]["ShowGodray"] = disableGodray ? "0" : "1";
-            currentData["General"]["HideEyeCandy"] = hideEyeCandy ? "1" : "0";
-
-            // [HUD]
-            if (currentData["HUD"] == null) currentData.Sections.AddSection("HUD");
-            currentData["HUD"]["EternalsMilestoneDisplayMode"] = disableEternals ? "0" : "2";
-
-            ConfigFiles.Save(_cfgPath, GetBackupPath(_cfgPath),
-                temp => _parser.WriteFile(temp, currentData, Encoding.Default));
+            var sections = new Dictionary<string, IDictionary<string, string>>(StringComparer.Ordinal)
+            {
+                ["Performance"] = new Dictionary<string, string>(StringComparer.Ordinal)
+                {
+                    ["ShadowQuality"] = shadow.ToString(),
+                    ["CharacterQuality"] = character.ToString(),
+                    ["EnvironmentQuality"] = env.ToString(),
+                    ["EffectsQuality"] = fx.ToString(),
+                    ["EnableFXAA"] = disableFXAA ? "0" : "1",
+                    ["EnableHUDAnimations"] = disableHUDAnim ? "0" : "1"
+                },
+                ["General"] = new Dictionary<string, string>(StringComparer.Ordinal)
+                {
+                    ["WindowMode"] = winMode.ToString(),
+                    ["WaitForVerticalSync"] = disableVSync ? "0" : "1",
+                    ["ShowGodray"] = disableGodray ? "0" : "1",
+                    ["HideEyeCandy"] = hideEyeCandy ? "1" : "0"
+                },
+                ["HUD"] = new Dictionary<string, string>(StringComparer.Ordinal)
+                {
+                    ["EternalsMilestoneDisplayMode"] = disableEternals ? "0" : "2"
+                }
+            };
+            LoLConfigText.Save(_cfgPath, GetBackupPath(_cfgPath), _parser.Parser, sections);
         }
 
         private void BrowseLoLBtn_Click(object sender, RoutedEventArgs e)
