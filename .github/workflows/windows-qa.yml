@@ -1,0 +1,114 @@
+name: Windows QA for RiotOptimizer
+
+on:
+  push:
+    branches: [qa/windows-619fc9f]
+
+permissions:
+  contents: read
+
+jobs:
+  windows-qa:
+    runs-on: windows-2022
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+          fetch-depth: 2
+      - name: Build original and candidate on Windows
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $PSNativeCommandUseErrorActionPreference = $false
+          Write-Host "Windows $([Environment]::OSVersion.Version), baseline $(git rev-parse HEAD^)"
+          if ((git rev-parse HEAD^) -ne '619fc9fb9609e5fd4389d951634e1045a2523f2b') { throw 'Wrong baseline' }
+          $vswhere = Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio\Installer\vswhere.exe'
+          $msbuild = & $vswhere -latest -products '*' -requires Microsoft.Component.MSBuild -find 'MSBuild\Current\Bin\MSBuild.exe' | Select-Object -First 1
+          if (-not $msbuild) { throw 'No MSBuild executable' }
+          $package = Join-Path $env:RUNNER_TEMP 'net461.zip'
+          $refRoot = Join-Path $env:RUNNER_TEMP 'net461'
+          Invoke-WebRequest 'https://api.nuget.org/v3-flatcontainer/microsoft.netframework.referenceassemblies.net461/1.0.3/microsoft.netframework.referenceassemblies.net461.1.0.3.nupkg' -OutFile $package
+          Expand-Archive $package $refRoot
+          $references = Join-Path $refRoot 'build\.NETFramework\v4.6.1'
+          $output = Join-Path $env:RUNNER_TEMP 'RiotOptimizer-QA'
+          $buildArguments = @('ValorantResFix.sln', '/t:Build', '/p:Configuration=Release', "/p:FrameworkPathOverride=$references", "/p:OutDir=$output\", '/verbosity:minimal', '/nologo')
+          $baseline = & $msbuild @buildArguments 2>&1
+          $baselineCode = $LASTEXITCODE
+          $baseline | ForEach-Object { Write-Host $_ }
+          if ($baselineCode -eq 0 -or ($baseline -join [Environment]::NewLine) -notmatch 'CS0246.*IniData') { throw 'Expected the baseline IniData build failure' }
+          Write-Host 'CONFIRMED baseline build failure CS0246'
+          $file = Join-Path $pwd 'ValorantResFix\Home.xaml.cs'
+          $text = [IO.File]::ReadAllText($file)
+          [IO.File]::WriteAllText($file, "using IniParser.Model;" + [Environment]::NewLine + $text)
+          & $msbuild @buildArguments
+          if ($LASTEXITCODE -ne 0) { throw 'Candidate build failed' }
+          Write-Host 'PASS candidate WPF Release build'
+      - name: Exercise save and recovery on NTFS
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $exe = Join-Path $env:RUNNER_TEMP 'RiotOptimizer-QA\RiotOptimizer.exe'
+          $app = [Reflection.Assembly]::LoadFrom($exe)
+          $config = $app.GetType('ValorantResFix.ConfigFiles', $true)
+          $flags = [Reflection.BindingFlags]'Static,NonPublic'
+          $save = $config.GetMethod('Save', $flags)
+          $restore = $config.GetMethod('Restore', $flags)
+          $root = Join-Path $env:RUNNER_TEMP ('RiotOptimizer-NTFS-' + [Guid]::NewGuid().ToString('N'))
+          $drive = [IO.DriveInfo]::new([IO.Path]::GetPathRoot($root))
+          if ($drive.DriveFormat -ne 'NTFS') { throw "Unexpected filesystem $($drive.DriveFormat)" }
+          $path = Join-Path $root 'config\GameUserSettings.ini'
+          $backup = Join-Path $root 'backup\config.bak'
+          function Assert($ok, $name) {
+            if (-not $ok) { throw "FAIL $name" }
+            Write-Host "PASS $name"
+          }
+          function Invoke-Save([string]$content) {
+            $writer = [Action[string]]{ param($temp) [IO.File]::WriteAllText($temp, $content) }
+            [void]$save.Invoke($null, [object[]]@($path, $backup, $writer))
+          }
+          function Is-ReadOnly {
+            return ([IO.File]::GetAttributes($path).HasFlag([IO.FileAttributes]::ReadOnly))
+          }
+          [void][IO.Directory]::CreateDirectory([IO.Path]::GetDirectoryName($path))
+          try {
+            [IO.File]::WriteAllText($path, 'original')
+            Invoke-Save 'first'
+            Assert (([IO.File]::ReadAllText($path) -eq 'first') -and (Is-ReadOnly) -and ([IO.File]::ReadAllText($backup) -eq 'original')) 'first save creates original backup and locks file'
+            Invoke-Save 'second'
+            Assert (([IO.File]::ReadAllText($path) -eq 'second') -and (Is-ReadOnly) -and ([IO.File]::ReadAllText($backup) -eq 'original')) 'repeat save preserves first backup'
+            $writer = [Action[string]]{ param($temp) [IO.File]::WriteAllText($temp, 'partial'); throw 'injected write failure' }
+            $failed = $false
+            try { [void]$save.Invoke($null, [object[]]@($path, $backup, $writer)) } catch { $failed = $true }
+            Assert ($failed -and ([IO.File]::ReadAllText($path) -eq 'second') -and (Is-ReadOnly)) 'interrupted write leaves config intact'
+            $held = [IO.File]::Open($path, 'Open', 'Read', 'Read')
+            try {
+              $blocked = $false
+              try { Invoke-Save 'blocked' } catch { $blocked = $true }
+            } finally { $held.Dispose() }
+            Assert ($blocked -and ([IO.File]::ReadAllText($path) -eq 'second') -and (Is-ReadOnly)) 'locked target remains intact'
+            [IO.File]::SetAttributes($path, 'Normal')
+            [IO.File]::WriteAllText($path, '[broken')
+            [IO.File]::SetAttributes($path, 'ReadOnly')
+            [void]$restore.Invoke($null, [object[]]@($path, $backup))
+            Assert (([IO.File]::ReadAllText($path) -eq 'original') -and -not (Is-ReadOnly)) 'restore replaces and unlocks malformed file'
+            [IO.Directory]::Delete([IO.Path]::GetDirectoryName($path), $true)
+            [void]$restore.Invoke($null, [object[]]@($path, $backup))
+            Assert (([IO.File]::ReadAllText($path) -eq 'original') -and -not (Is-ReadOnly)) 'restore recreates missing file and parent'
+          } finally {
+            if ([IO.File]::Exists($path)) { [IO.File]::SetAttributes($path, 'Normal') }
+            if ([IO.Directory]::Exists($root)) { Remove-Item -LiteralPath $root -Recurse -Force }
+          }
+      - name: Smoke test WPF startup
+        shell: pwsh
+        run: |
+          $exe = Join-Path $env:RUNNER_TEMP 'RiotOptimizer-QA\RiotOptimizer.exe'
+          $app = Start-Process -FilePath $exe -PassThru
+          try {
+            $ready = $app.WaitForInputIdle(15000)
+            $app.Refresh()
+            if (-not $ready -or $app.HasExited -or $app.MainWindowHandle -eq 0) { throw 'RiotOptimizer main window did not become ready' }
+            Write-Host "PASS main WPF window started: $($app.MainWindowTitle)"
+          } finally {
+            if (-not $app.HasExited) { Stop-Process -Id $app.Id }
+          }
