@@ -1,4 +1,4 @@
-name: Windows QA for RiotOptimizer
+name: Windows QA for RiotOptimizer fixes
 
 on:
   push:
@@ -16,16 +16,12 @@ jobs:
         with:
           persist-credentials: false
           fetch-depth: 0
-      - name: Build original and candidate on Windows
+      - name: Build Release on Windows
         id: windows-build
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
           $PSNativeCommandUseErrorActionPreference = $false
-          $base = '619fc9fb9609e5fd4389d951634e1045a2523f2b'
-          Write-Host "Windows $([Environment]::OSVersion.Version), baseline $base"
-          git diff --quiet $base HEAD -- ValorantResFix ValorantResFix.sln packages
-          if ($LASTEXITCODE -ne 0) { throw 'Wrong baseline source' }
           $vswhere = Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio\Installer\vswhere.exe'
           $msbuild = & $vswhere -latest -products '*' -requires Microsoft.Component.MSBuild -find 'MSBuild\Current\Bin\MSBuild.exe' | Select-Object -First 1
           if (-not $msbuild) { throw 'No MSBuild executable' }
@@ -36,17 +32,9 @@ jobs:
           $references = Join-Path $refRoot 'build\.NETFramework\v4.6.1'
           $output = Join-Path $env:RUNNER_TEMP 'RiotOptimizer-QA'
           $buildArguments = @('ValorantResFix.sln', '/t:Build', '/p:Configuration=Release', "/p:FrameworkPathOverride=$references", "/p:OutDir=$output\", '/verbosity:minimal', '/nologo')
-          $baseline = & $msbuild @buildArguments 2>&1
-          $baselineCode = $LASTEXITCODE
-          $baseline | ForEach-Object { Write-Host $_ }
-          if ($baselineCode -eq 0 -or ($baseline -join [Environment]::NewLine) -notmatch 'CS0246.*IniData') { throw 'Expected the baseline IniData build failure' }
-          Write-Host 'CONFIRMED baseline build failure CS0246'
-          $file = Join-Path $pwd 'ValorantResFix\Home.xaml.cs'
-          $text = [IO.File]::ReadAllText($file)
-          [IO.File]::WriteAllText($file, "using IniParser.Model;" + [Environment]::NewLine + $text)
           & $msbuild @buildArguments
-          if ($LASTEXITCODE -ne 0) { throw 'Candidate build failed' }
-          Write-Host 'PASS candidate WPF Release build'
+          if ($LASTEXITCODE -ne 0) { throw 'Release build failed' }
+          Write-Host 'PASS WPF Release build'
       - name: Exercise save and recovery on NTFS
         shell: powershell
         run: |
@@ -81,21 +69,34 @@ jobs:
                   method.Invoke(null, new object[] { path, backup });
               }
 
-              public static bool ReproducesLoss(MethodInfo method, string path, string backup)
+              public static void VerifyLoL(Assembly app, string dir)
               {
-                  string input = "[General]\nExternalDirective\nCustomSetting=First\nCustomSetting=Last\n[Performance]\nShadowQuality=4\n";
-                  File.WriteAllText(path, input);
-                  var parser = new FileIniDataParser();
-                  parser.Parser.Configuration.SkipInvalidLines = true;
-                  parser.Parser.Configuration.AllowDuplicateKeys = true;
-                  parser.Parser.Configuration.OverrideDuplicateKeys = true;
-                  var ini = parser.ReadFile(path, System.Text.Encoding.Default);
-                  ini["Performance"]["ShadowQuality"] = "0";
-                  Action<string> write = temp => parser.WriteFile(temp, ini, System.Text.Encoding.Default);
-                  method.Invoke(null, new object[] { path, backup, write });
-                  string result = File.ReadAllText(path);
-                  return !result.Contains("ExternalDirective") && !result.Contains("First") && result.Contains("Last") &&
-                      File.ReadAllText(backup) == input;
+                  var flags = BindingFlags.NonPublic | BindingFlags.Static;
+                  var save = app.GetType("ValorantResFix.LoLConfigText", true).GetMethod("Save", flags);
+                  var parser = new FileIniDataParser().Parser;
+                  parser.Configuration.SkipInvalidLines = true;
+                  parser.Configuration.AllowDuplicateKeys = true;
+                  parser.Configuration.OverrideDuplicateKeys = true;
+                  var sections = new System.Collections.Generic.Dictionary<string, System.Collections.Generic.IDictionary<string, string>>
+                  {
+                      { "Performance", new System.Collections.Generic.Dictionary<string, string> { { "ShadowQuality", "0" }, { "EffectsQuality", "1" } } },
+                      { "HUD", new System.Collections.Generic.Dictionary<string, string> { { "EternalsMilestoneDisplayMode", "0" } } }
+                  };
+                  foreach (var codec in new[] { System.Text.Encoding.Default, new System.Text.UTF8Encoding(true), System.Text.Encoding.Unicode })
+                  {
+                      string path = Path.Combine(dir, "game-" + codec.CodePage + ".cfg");
+                      string backup = path + ".bak";
+                      string input = "[General]\r\nExternalDirective\nCustomSetting=First\r\nCustomSetting=Last\r\n[Performance]\nShadowQuality=4\r\n  ShadowQuality = 3  ; keep this\r\n[Other]\r\nUnrelated=Déjà vu";
+                      string expected = input.Replace("  ShadowQuality = 3  ; keep this\r\n", "  ShadowQuality = 0  ; keep this\r\nEffectsQuality=1\r\n") + "\r\n[HUD]\r\nEternalsMilestoneDisplayMode=0";
+                      File.WriteAllText(path, input, codec);
+                      byte[] original = File.ReadAllBytes(path);
+                      save.Invoke(null, new object[] { path, backup, parser, sections });
+                      byte[] expectedBytes = System.Linq.Enumerable.ToArray(System.Linq.Enumerable.Concat(codec.GetPreamble(), codec.GetBytes(expected)));
+                      if (!System.Linq.Enumerable.SequenceEqual(File.ReadAllBytes(path), expectedBytes) ||
+                          !System.Linq.Enumerable.SequenceEqual(File.ReadAllBytes(backup), original))
+                          throw new Exception("LoL config content, encoding, or backup differed for code page " + codec.CodePage);
+                      Console.WriteLine("PASS LoL preserves unrelated and duplicate entries, inline comments, encoding, mixed newlines and EOF; code page " + codec.CodePage);
+                  }
               }
           }
           '@
@@ -138,13 +139,7 @@ jobs:
             [IO.Directory]::Delete([IO.Path]::GetDirectoryName($path), $true)
             [WindowsQaBridge]::Restore($restore, $path, $backup)
             Assert (([IO.File]::ReadAllText($path) -eq 'original') -and -not (Is-ReadOnly)) 'restore recreates missing file and parent'
-            $lol = Join-Path $root 'game.cfg'
-            $lolBackup = Join-Path $root 'backup\lol.bak'
-            if ([WindowsQaBridge]::ReproducesLoss($save, $lol, $lolBackup)) {
-              Write-Host 'CONFIRMED League rewrite drops unparsed lines and earlier duplicate values'
-            } else {
-              throw 'The League config fixture produced an unexpected result'
-            }
+            [WindowsQaBridge]::VerifyLoL($app, $root)
           } finally {
             if ([IO.File]::Exists($path)) { [IO.File]::SetAttributes($path, 'Normal') }
             if ([IO.Directory]::Exists($root)) { Remove-Item -LiteralPath $root -Recurse -Force }
