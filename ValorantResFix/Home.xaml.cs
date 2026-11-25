@@ -112,6 +112,7 @@ namespace ValorantResFix
         {
             TotalFileTxt.Text = _fnames.Count.ToString();
 
+            var failedFiles = new List<string>();
             // load Data
             foreach (var s in _fnames)
             {
@@ -144,17 +145,24 @@ namespace ValorantResFix
                     _SG.Add(sg);
                     _iniList.Add(data);
                 }
-                catch
+                catch (Exception ex)
                 {
-                    continue;
+                    failedFiles.Add(s + ": " + ex.Message);
                 }
             }
+
+            TotalFileTxt.Text = _SG.Count.ToString();
+            if (failedFiles.Count > 0)
+                MessageBox.Show(Loc.T("Không thể đọc các file sau; chúng sẽ không được lưu hoặc khôi phục:\n", "Could not read the following files; they will not be saved or restored:\n") + string.Join("\n", failedFiles), Loc.T("Cảnh báo", "Warning"));
+            SaveBtn.IsEnabled = _SG.Count > 0;
+            ApplyLowBtn.IsEnabled = _SG.Count > 0;
+            resDefBtn.IsEnabled = _SG.Count > 0;
 
             // View Data 
             if (_SG.Count < 1)
             {
                 MessageBox.Show("Không thể đọc file cấu hình. Hãy đảm bảo VALORANT đã được khởi chạy ít nhất một lần.", "Lỗi");
-                Application.Current.Shutdown();
+                LoadGrid.Visibility = Visibility.Collapsed;
                 return;
             }
             else
@@ -284,8 +292,8 @@ namespace ValorantResFix
 
             if (!SaveChanges(sg)) return;
             MessageBox.Show(
-                Loc.T("Đã lưu thiết lập thành công!\nFile cấu hình đã được khóa Read-Only để chống game tự reset.",
-                      "Settings Successfully Changed!\nConfig files locked as Read-Only to prevent reset."),
+                Loc.T("Đã lưu thiết lập cho các file đọc được!\nFile cấu hình đã được khóa Read-Only để chống game tự reset.",
+                      "Settings saved for readable files!\nConfig files locked as Read-Only to prevent reset."),
                 Loc.T("Hoàn tất", "Done"));
         }
 
@@ -321,8 +329,8 @@ namespace ValorantResFix
             if (!SaveChanges(sg)) return;
 
             MessageBox.Show(
-                Loc.T("Đã áp dụng cấu hình tối ưu FPS thành công!\nResolution Quality đặt về 60% và toàn bộ đồ họa ở mức thấp nhất cho tất cả tài khoản.",
-                      "Low Settings Applied Successfully!\nResolution set to 60% and all graphics options set to Low for maximum FPS across all accounts."),
+                Loc.T("Đã áp dụng cấu hình tối ưu FPS thành công!\nResolution Quality đặt về 60% và toàn bộ đồ họa ở mức thấp nhất cho các file đọc được.",
+                      "Low Settings Applied Successfully!\nResolution set to 60% and all graphics options set to Low for maximum FPS across readable files."),
                 Loc.T("Hoàn tất", "Done"));
 
             ResqualityBox.Text = sg.ResolutionQuality.ToString();
@@ -456,9 +464,16 @@ namespace ValorantResFix
                             File.SetAttributes(filePath, attr & ~FileAttributes.ReadOnly);
                         }
 
-                        parser.WriteFile(filePath, _iniList[i]);
-
-                        File.SetAttributes(filePath, attr | FileAttributes.ReadOnly);
+                        try
+                        {
+                            parser.WriteFile(filePath, _iniList[i]);
+                            File.SetAttributes(filePath, attr | FileAttributes.ReadOnly);
+                        }
+                        catch
+                        {
+                            if (File.Exists(filePath)) File.SetAttributes(filePath, attr);
+                            throw;
+                        }
                     }
                     else
                     {

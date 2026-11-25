@@ -522,15 +522,15 @@ namespace ValorantResFix
                 File.SetAttributes(_cfgPath, attr & ~FileAttributes.ReadOnly);
             }
 
-            _parser.WriteFile(_cfgPath, currentData, Encoding.Default);
-
-            if (unlockReadOnly)
+            try
             {
-                File.SetAttributes(_cfgPath, attr & ~FileAttributes.ReadOnly);
+                _parser.WriteFile(_cfgPath, currentData, Encoding.Default);
+                File.SetAttributes(_cfgPath, unlockReadOnly ? attr & ~FileAttributes.ReadOnly : attr | FileAttributes.ReadOnly);
             }
-            else
+            catch
             {
-                File.SetAttributes(_cfgPath, attr | FileAttributes.ReadOnly);
+                if (File.Exists(_cfgPath)) File.SetAttributes(_cfgPath, attr);
+                throw;
             }
         }
 
