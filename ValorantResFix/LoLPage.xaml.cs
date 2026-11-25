@@ -1,5 +1,4 @@
 using IniParser;
-using IniParser.Model;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -23,18 +22,14 @@ namespace ValorantResFix
     /// </summary>
     public partial class LoLPage : Page
     {
-        private string _cfgPath = null;
-        private FileIniDataParser _parser = new FileIniDataParser();
-        private IniData _iniData = null;
+        private const string ConfigName = "game.cfg";
+        private const string BackupKind = "lol";
+        private string _cfgPath;
+        private readonly FileIniDataParser _parser = new FileIniDataParser();
 
-        private string GetBackupPath(string path)
+        private static string GetBackupPath(string path)
         {
-            string dir = System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "RiotOptimizer", "Backups");
-            using (var sha = System.Security.Cryptography.SHA256.Create())
-            {
-                byte[] hash = sha.ComputeHash(Encoding.UTF8.GetBytes(System.IO.Path.GetFullPath(path).ToUpperInvariant()));
-                return System.IO.Path.Combine(dir, BitConverter.ToString(hash).Replace("-", "") + ".lol.bak");
-            }
+            return ConfigFiles.BackupPath(path, BackupKind);
         }
 
         public LoLPage()
@@ -80,8 +75,8 @@ namespace ValorantResFix
                 SaveBtn.ToolTip = "Lưu các thiết lập vào game.cfg";
                 ApplyLowBtn.Content = "Tối ưu FPS (Low)";
                 ApplyLowBtn.ToolTip = "Tự động tắt toàn bộ hiệu ứng nặng để đạt FPS tối đa";
-                ResDefBtnLoLText.Text = "Khôi phục gốc";
-                resDefBtn.ToolTip = "Khôi phục file game.cfg về mặc định và mở khóa file";
+                ResDefBtnLoLText.Text = "Khôi phục bản sao lưu";
+                resDefBtn.ToolTip = "Khôi phục bản sao lưu game.cfg và mở khóa file";
                 LoLScaleHintTxt.Text = "• Mức đồ họa: 0 = Rất thấp (Tắt), 1 = Thấp, 2 = Trung bình, 3 = Cao, 4 = Rất cao";
             }
             else
@@ -109,22 +104,25 @@ namespace ValorantResFix
                 SaveBtn.ToolTip = "Save settings to game.cfg";
                 ApplyLowBtn.Content = "Apply Low (FPS)";
                 ApplyLowBtn.ToolTip = "Automatically disable heavy graphics for maximum FPS";
-                ResDefBtnLoLText.Text = "Rollback Default";
-                resDefBtn.ToolTip = "Revert game.cfg to default and unlock file";
+                ResDefBtnLoLText.Text = "Restore Backup";
+                resDefBtn.ToolTip = "Restore and unlock game.cfg from its backup";
                 LoLScaleHintTxt.Text = "• Graphics scale: 0 = Very Low (Off), 1 = Low, 2 = Medium, 3 = High, 4 = Very High";
             }
         }
 
         public void StartUP()
         {
-            _cfgPath = FindLoLConfigPath();
-
-            if (!string.IsNullOrEmpty(_cfgPath) && File.Exists(_cfgPath))
+            string path = FindLoLConfigPath();
+            if (path != null)
             {
-                LoadConfig(_cfgPath);
+                LoadConfig(path);
             }
             else
             {
+                _cfgPath = null;
+                SaveBtn.IsEnabled = false;
+                ApplyLowBtn.IsEnabled = false;
+                resDefBtn.IsEnabled = false;
                 PathBox.Text = Loc.T("Không tự động tìm thấy game.cfg. Vui lòng bấm 'Chọn file...'", "Could not find game.cfg automatically. Please click 'Browse...'");
             }
         }
@@ -213,6 +211,14 @@ namespace ValorantResFix
 
         private bool LoadConfig(string path)
         {
+            _cfgPath = path;
+            PathBox.Text = path;
+            SaveBtn.IsEnabled = false;
+            ApplyLowBtn.IsEnabled = false;
+            resDefBtn.IsEnabled = true;
+            if (!File.Exists(path) && File.Exists(GetBackupPath(path)))
+                return false;
+
             try
             {
                 var loadedData = _parser.ReadFile(path, Encoding.Default);
@@ -254,17 +260,16 @@ namespace ValorantResFix
                 var hud = loadedData["HUD"];
                 int eternals = hud != null ? ParseInt(hud["EternalsMilestoneDisplayMode"], 0) : 0;
                 DisableEternalsCheck.IsChecked = (eternals == 0);
-                _iniData = loadedData;
-                _cfgPath = path;
-                PathBox.Text = path;
+                SaveBtn.IsEnabled = true;
+                ApplyLowBtn.IsEnabled = true;
                 return true;
             }
             catch (Exception ex)
             {
-                _cfgPath = null;
-                _iniData = null;
-                PathBox.Text = Loc.T("Không thể đọc file. Vui lòng chọn lại.", "Unable to read file. Please select it again.");
-                MessageBox.Show("Lỗi đọc file game.cfg: " + ex.Message, "Lỗi");
+                MessageBox.Show(
+                    Loc.T("Không thể đọc file game.cfg: ", "Unable to read game.cfg: ") + ex.Message + "\n\n" +
+                    Loc.T("Bạn có thể khôi phục file nếu có bản sao lưu.", "You can restore the file if a backup exists."),
+                    Loc.T("Lỗi", "Error"));
                 return false;
             }
         }
@@ -348,8 +353,7 @@ namespace ValorantResFix
                     DisableHUDAnimCheck.IsChecked == true,
                     DisableFXAACheck.IsChecked == true,
                     DisableEternalsCheck.IsChecked == true,
-                    DisableVSyncCheck.IsChecked == true,
-                    unlockReadOnly: false);
+                    DisableVSyncCheck.IsChecked == true);
 
                 MessageBox.Show(
                     Loc.T("Đã lưu cài đặt Liên Minh Huyền Thoại thành công!\nFile cấu hình đã được khóa Read-Only để chống game tự reset.",
@@ -400,8 +404,7 @@ namespace ValorantResFix
                     disableHUDAnim: true,
                     disableFXAA: true,
                     disableEternals: true,
-                    disableVSync: true,
-                    unlockReadOnly: false);
+                    disableVSync: true);
 
                 // Update UI
                 ShadowQBox.Text = "0";
@@ -431,7 +434,7 @@ namespace ValorantResFix
 
         private void resDefBtn_Click(object sender, RoutedEventArgs e)
         {
-            if (string.IsNullOrEmpty(_cfgPath) || !File.Exists(_cfgPath)) return;
+            if (string.IsNullOrEmpty(_cfgPath)) return;
 
             if (IsLoLRunning())
             {
@@ -457,23 +460,12 @@ namespace ValorantResFix
                           "Restoring replaces the entire configuration file with its backup. Other in-game changes made after the backup will be lost. Continue?"),
                     Loc.T("Xác nhận khôi phục", "Confirm restore"), MessageBoxButton.YesNo, MessageBoxImage.Warning);
                 if (answer != MessageBoxResult.Yes) return;
-                var attr = File.GetAttributes(_cfgPath);
-                File.SetAttributes(_cfgPath, attr & ~FileAttributes.ReadOnly);
-                try
-                {
-                    File.Copy(backupPath, _cfgPath, true);
-                    File.SetAttributes(_cfgPath, File.GetAttributes(_cfgPath) & ~FileAttributes.ReadOnly);
-                }
-                catch
-                {
-                    if (File.Exists(_cfgPath)) File.SetAttributes(_cfgPath, attr);
-                    throw;
-                }
+                ConfigFiles.Restore(_cfgPath, backupPath);
 
                 if (!LoadConfig(_cfgPath)) return;
                 MessageBox.Show(
-                    Loc.T("Đã khôi phục cài đặt LMHT gốc thành công và mở khóa file (bỏ Read-Only)!",
-                          "Default LoL settings restored successfully and file unlocked!"),
+                    Loc.T("Đã khôi phục bản sao lưu LMHT thành công và mở khóa file (bỏ Read-Only)!",
+                          "LoL backup restored successfully and file unlocked!"),
                     Loc.T("Hoàn tất", "Done"));
             }
             catch (Exception ex)
@@ -488,8 +480,7 @@ namespace ValorantResFix
             int shadow, int character, int env, int fx,
             int winMode,
             bool disableGodray, bool hideEyeCandy, bool disableHUDAnim,
-            bool disableFXAA, bool disableEternals, bool disableVSync,
-            bool unlockReadOnly)
+            bool disableFXAA, bool disableEternals, bool disableVSync)
         {
             var currentData = _parser.ReadFile(_cfgPath, Encoding.Default);
 
@@ -513,42 +504,17 @@ namespace ValorantResFix
             if (currentData["HUD"] == null) currentData.Sections.AddSection("HUD");
             currentData["HUD"]["EternalsMilestoneDisplayMode"] = disableEternals ? "0" : "2";
 
-            string backupPath = GetBackupPath(_cfgPath);
-            Directory.CreateDirectory(System.IO.Path.GetDirectoryName(backupPath));
-            if (!File.Exists(backupPath)) File.Copy(_cfgPath, backupPath);
-            var attr = File.GetAttributes(_cfgPath);
-            if ((attr & FileAttributes.ReadOnly) == FileAttributes.ReadOnly)
-            {
-                File.SetAttributes(_cfgPath, attr & ~FileAttributes.ReadOnly);
-            }
-
-            try
-            {
-                _parser.WriteFile(_cfgPath, currentData, Encoding.Default);
-                File.SetAttributes(_cfgPath, unlockReadOnly ? attr & ~FileAttributes.ReadOnly : attr | FileAttributes.ReadOnly);
-            }
-            catch
-            {
-                if (File.Exists(_cfgPath)) File.SetAttributes(_cfgPath, attr);
-                throw;
-            }
+            ConfigFiles.Save(_cfgPath, GetBackupPath(_cfgPath),
+                temp => _parser.WriteFile(temp, currentData, Encoding.Default));
         }
 
         private void BrowseLoLBtn_Click(object sender, RoutedEventArgs e)
         {
             try
             {
-                Microsoft.Win32.OpenFileDialog dlg = new Microsoft.Win32.OpenFileDialog
-                {
-                    Filter = "LoL Config (game.cfg)|game.cfg|Config Files (*.cfg;*.ini)|*.cfg;*.ini|All Files (*.*)|*.*",
-                    Title = Loc.T("Chọn file game.cfg của Liên Minh Huyền Thoại", "Select League of Legends game.cfg")
-                };
-
-                bool? res = dlg.ShowDialog();
-                if (res == true)
-                {
-                    LoadConfig(dlg.FileName);
-                }
+                string path = ConfigFiles.Browse(ConfigName, BackupKind);
+                if (path != null)
+                    LoadConfig(path);
             }
             catch (Exception ex)
             {

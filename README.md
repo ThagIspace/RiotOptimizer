@@ -18,7 +18,7 @@ An open-source, lightweight all-in-one optimizer for Riot Games titles (**VALORA
 - **Chống khựng giao tranh:** Tắt thông báo Cột Mốc Thần Thoại (`EternalsMilestoneDisplayMode=0`).
 
 ### 🛡️ Tiện ích chung
-- **1-Click Rollback:** Nút "Khôi phục gốc" giúp hoàn tác về cài đặt mặc định và tự động mở khóa file (bỏ Read-Only).
+- **Khôi phục bản sao lưu:** Chép lại file được lưu trước lần chỉnh đầu tiên trên mỗi đường dẫn và bỏ thuộc tính Read-Only.
 - **Bảng Lưu ý (Notice):** Tích hợp hướng dẫn sử dụng và lưu ý quan trọng ngay trên giao diện.
 - **Giao diện Tiếng Việt thân thiện:** Dễ sử dụng cho game thủ Việt Nam.
 
@@ -31,12 +31,20 @@ An open-source, lightweight all-in-one optimizer for Riot Games titles (**VALORA
 ---
 
 ## 📦 Hướng Dẫn Sử Dụng (How to Use)
+
+Nhánh `main` chứa mã nguồn v2.5. Để dùng phiên bản này, mở `ValorantResFix.sln` trong Visual Studio trên Windows với thành phần **.NET desktop development** và **.NET Framework 4.6.1 targeting pack**, khôi phục gói NuGet rồi build cấu hình **Release**. Chạy `ValorantResFix/bin/Release/RiotOptimizer.exe`.
+
+[Gói tải sẵn v2.0](https://github.com/ThagIspace/RiotOptimizer/releases/tag/v2.0) chỉ hỗ trợ VALORANT.
+
 1. Tắt VALORANT / LMHT trước khi mở tool.
 2. Mở file **`RiotOptimizer.exe`**.
 3. Chọn tab game muốn tối ưu (**VALORANT** hoặc **LEAGUE OF LEGENDS**).
 4. Bấm **Tối ưu FPS (Low)** để tự động áp dụng cấu hình tối đa FPS, hoặc tự chỉnh tay rồi bấm **Lưu thay đổi**.
 5. Vào game và trải nghiệm!
-*(Nếu muốn khôi phục về cài đặt gốc, chỉ cần bấm **Khôi phục gốc**).*
+
+Để hoàn tác, bấm **Khôi phục bản sao lưu**. Thao tác này chép lại toàn bộ file từ bản sao, nên các chỉnh sửa thực hiện sau thời điểm sao lưu sẽ mất. Nếu file bị xóa, bấm **Chọn file** rồi nhập đường dẫn ban đầu của file.
+
+Nếu đã tối ưu VALORANT bằng v2.0, hãy dùng bản cũ và file `Backup.dat` của đúng bản cài đó để khôi phục cấu hình tương ứng trước khi lưu lần đầu bằng v2.5. Bản v2.5 sao lưu nội dung đang có trên từng đường dẫn. `Backup.dat` chỉ lưu một bộ thiết lập và có thể không khớp với các tài khoản khác.
 
 ---
 

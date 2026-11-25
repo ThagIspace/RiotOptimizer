@@ -91,10 +91,10 @@
             <StackPanel Margin="0 25 0 0" HorizontalAlignment="Center" Orientation="Horizontal">
                 <Button Name="SaveBtn" Click="SaveBtn_Click" Width="140" Margin="6" ToolTip="Lưu các thiết lập vào game.cfg">Lưu thay đổi</Button>
                 <Button Name="ApplyLowBtn" Click="ApplyLowBtn_Click" Width="180" Margin="6" ToolTip="Tự động tắt toàn bộ hiệu ứng nặng để đạt FPS tối đa">Tối ưu FPS (Low)</Button>
-                <Button Name="resDefBtn" Click="resDefBtn_Click" Width="190" Margin="6" Style="{DynamicResource MaterialDesignOutlinedButton}" Foreground="LightCoral" BorderBrush="LightCoral" ToolTip="Khôi phục file game.cfg về mặc định và mở khóa file">
+                <Button Name="resDefBtn" Click="resDefBtn_Click" Width="190" Margin="6" Style="{DynamicResource MaterialDesignOutlinedButton}" Foreground="LightCoral" BorderBrush="LightCoral" ToolTip="Khôi phục bản sao lưu game.cfg và mở khóa file">
                     <StackPanel Orientation="Horizontal">
                         <materialDesign:PackIcon Kind="Restore" VerticalAlignment="Center" Margin="0 0 6 0"/>
-                        <TextBlock Name="ResDefBtnLoLText" Text="Khôi phục gốc" VerticalAlignment="Center" FontWeight="SemiBold"/>
+                        <TextBlock Name="ResDefBtnLoLText" Text="Khôi phục bản sao lưu" VerticalAlignment="Center" FontWeight="SemiBold"/>
                     </StackPanel>
                 </Button>
             </StackPanel>

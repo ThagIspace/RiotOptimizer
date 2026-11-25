@@ -1,11 +1,9 @@
 ﻿using IniParser;
-using IniParser.Model;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
-using System.Text;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
@@ -24,28 +22,22 @@ namespace ValorantResFix
     /// </summary>
     public partial class Home : Page
     {
-        private List<string> _fnames = new List<string>();
-        private List<ScalabilityGroups> _SG = new List<ScalabilityGroups>();
+        internal const string ConfigName = "GameUserSettings.ini";
+        internal const string BackupKind = "valorant";
 
-        // ini parser
-        private FileIniDataParser parser = new FileIniDataParser();
-        private List<IniData> _iniList = new List<IniData>();
+        private readonly List<string> _fnames;
+        private readonly FileIniDataParser parser = new FileIniDataParser();
 
-        private string GetBackupPath(string path)
+        private static string GetBackupPath(string path)
         {
-            string dir = System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "RiotOptimizer", "Backups");
-            using (var sha = System.Security.Cryptography.SHA256.Create())
-            {
-                byte[] hash = sha.ComputeHash(Encoding.UTF8.GetBytes(System.IO.Path.GetFullPath(path).ToUpperInvariant()));
-                return System.IO.Path.Combine(dir, BitConverter.ToString(hash).Replace("-", "") + ".valorant.bak");
-            }
+            return ConfigFiles.BackupPath(path, BackupKind);
         }
 
         public Home(List<string> fl)
         {
             InitializeComponent();
 
-            _fnames = fl ?? new List<string>();
+            _fnames = fl.Distinct(StringComparer.OrdinalIgnoreCase).ToList();
 
             Loc.OnLanguageChanged += ApplyLocalization;
             ApplyLocalization();
@@ -62,8 +54,9 @@ namespace ValorantResFix
                 SaveBtn.ToolTip = "Lưu thiết lập vào tất cả tài khoản";
                 ApplyLowBtn.Content = "Tối ưu FPS (Low)";
                 ApplyLowBtn.ToolTip = "Cài đặt cấu hình thấp nhất để tối đa hóa FPS";
-                ResDefBtnText.Text = "Khôi phục gốc";
-                resDefBtn.ToolTip = "Khôi phục tất cả tài khoản về cài đặt gốc và mở khóa file";
+                ResDefBtnText.Text = "Khôi phục bản sao lưu";
+                BrowseBtn.Content = "Chọn file...";
+                resDefBtn.ToolTip = "Khôi phục các file có bản sao lưu và mở khóa file";
                 LoadTxt.Text = "Đang tải dữ liệu, vui lòng đợi...";
                 ValScaleHintTxt.Text = "• Mức đồ họa: 0 = Thấp nhất (Low), 1 = Trung bình, 2 = Cao, 3 = Tối đa (Ultra) | Độ phân giải: 0 - 100%";
             }
@@ -74,8 +67,9 @@ namespace ValorantResFix
                 SaveBtn.ToolTip = "Save custom settings to all accounts";
                 ApplyLowBtn.Content = "Apply Low (FPS)";
                 ApplyLowBtn.ToolTip = "Optimal low settings for maximum FPS";
-                ResDefBtnText.Text = "Rollback Default";
-                resDefBtn.ToolTip = "Rollback all accounts to original settings and unlock files";
+                ResDefBtnText.Text = "Restore Backup";
+                BrowseBtn.Content = "Browse...";
+                resDefBtn.ToolTip = "Restore and unlock configs with backups";
                 LoadTxt.Text = "Loading Data, Please wait...";
                 ValScaleHintTxt.Text = "• Graphics scale: 0 = Low, 1 = Medium, 2 = High, 3 = Ultra | Resolution Quality: 0 - 100%";
             }
@@ -110,10 +104,8 @@ namespace ValorantResFix
 
         private void StartUP()
         {
-            TotalFileTxt.Text = _fnames.Count.ToString();
-
             var failedFiles = new List<string>();
-            // load Data
+            var loaded = new List<ScalabilityGroups>();
             foreach (var s in _fnames)
             {
                 try
@@ -140,10 +132,8 @@ namespace ValorantResFix
                     sg.ShadingQuality = ParseIniInt(sgSection["sg.ShadingQuality"], 3);
                     sg.GlobalIlluminationQuality = ParseIniInt(sgSection["sg.GlobalIlluminationQuality"], 3);
                     sg.ReflectionQuality = ParseIniInt(sgSection["sg.ReflectionQuality"], 3);
-                    sg.FilePath = s;
 
-                    _SG.Add(sg);
-                    _iniList.Add(data);
+                    loaded.Add(sg);
                 }
                 catch (Exception ex)
                 {
@@ -151,35 +141,18 @@ namespace ValorantResFix
                 }
             }
 
-            TotalFileTxt.Text = _SG.Count.ToString();
-            if (failedFiles.Count > 0)
-                MessageBox.Show(Loc.T("Không thể đọc các file sau; chúng sẽ không được lưu hoặc khôi phục:\n", "Could not read the following files; they will not be saved or restored:\n") + string.Join("\n", failedFiles), Loc.T("Cảnh báo", "Warning"));
-            SaveBtn.IsEnabled = _SG.Count > 0;
-            ApplyLowBtn.IsEnabled = _SG.Count > 0;
-            resDefBtn.IsEnabled = _SG.Count > 0;
+            TotalFileTxt.Text = loaded.Count.ToString();
+            SaveBtn.IsEnabled = loaded.Count > 0;
+            ApplyLowBtn.IsEnabled = loaded.Count > 0;
+            resDefBtn.IsEnabled = _fnames.Count > 0;
+            if (loaded.Count > 0)
+                ShowSettings(loaded[0]);
 
-            // View Data 
-            if (_SG.Count < 1)
-            {
-                MessageBox.Show("Không thể đọc file cấu hình. Hãy đảm bảo VALORANT đã được khởi chạy ít nhất một lần.", "Lỗi");
-                LoadGrid.Visibility = Visibility.Collapsed;
-                return;
-            }
-            else
-            {
-                // set the first element's data to the view 
-                ResqualityBox.Text = _SG[0].ResolutionQuality.ToString();
-                ViewDistanceQBox.Text = _SG[0].ViewDistanceQuality.ToString();
-                AntiAliasisBox.Text = _SG[0].AntiAliasingQuality.ToString();
-                ShadowQBox.Text = _SG[0].ShadowQuality.ToString();
-                PostProcessBox.Text = _SG[0].PostProcessQuality.ToString();
-                TextureQBox.Text = _SG[0].TextureQuality.ToString();
-                EffectQBox.Text = _SG[0].EffectsQuality.ToString();
-                FoliageQBox.Text = _SG[0].FoliageQuality.ToString();
-                ShadingQBox.Text = _SG[0].ShadingQuality.ToString();
-                GIQualityBox.Text = _SG[0].GlobalIlluminationQuality.ToString();
-                ReflectionQBox.Text = _SG[0].ReflectionQuality.ToString();
-            }
+            if (failedFiles.Count > 0)
+                MessageBox.Show(
+                    Loc.T("Chưa đọc được các file sau. Bạn vẫn có thể khôi phục file có bản sao lưu:\n",
+                          "The following files could not be read. You can still restore files with a backup:\n") + string.Join("\n", failedFiles),
+                    Loc.T("Cảnh báo", "Warning"));
 
             LoadGrid.Visibility = Visibility.Collapsed;
         }
@@ -333,6 +306,11 @@ namespace ValorantResFix
                       "Low Settings Applied Successfully!\nResolution set to 60% and all graphics options set to Low for maximum FPS across readable files."),
                 Loc.T("Hoàn tất", "Done"));
 
+            ShowSettings(sg);
+        }
+
+        private void ShowSettings(ScalabilityGroups sg)
+        {
             ResqualityBox.Text = sg.ResolutionQuality.ToString();
             ViewDistanceQBox.Text = sg.ViewDistanceQuality.ToString();
             AntiAliasisBox.Text = sg.AntiAliasingQuality.ToString();
@@ -359,48 +337,42 @@ namespace ValorantResFix
                 if (answer != MessageBoxResult.Yes) return;
             }
 
-            var missing = _SG.Where(item => !File.Exists(GetBackupPath(item.FilePath))).Select(item => item.FilePath).ToList();
-            var available = _SG.Where(item => File.Exists(GetBackupPath(item.FilePath))).ToList();
+            var missing = new List<string>();
+            var available = new List<string>();
+            foreach (string path in _fnames)
+            {
+                (File.Exists(GetBackupPath(path)) ? available : missing).Add(path);
+            }
             if (available.Count == 0)
             {
-                MessageBox.Show(Loc.T("Không có bản sao lưu cho các file đã tìm thấy.", "No backups exist for the detected files."), Loc.T("Lỗi", "Error"));
+                string warningText = Loc.T("Không có bản sao lưu cho các file đã chọn.", "No backups exist for the selected files.");
+                if (HasLegacyBackup())
+                    warningText += "\n\n" + LegacyBackupNotice();
+                MessageBox.Show(warningText, Loc.T("Lỗi", "Error"));
                 return;
             }
             string warning = Loc.T(
                 "Khôi phục sẽ ghi đè toàn bộ file cấu hình bằng bản sao lưu. Các thay đổi khác trong game sau khi sao lưu sẽ bị mất.",
                 "Restoring replaces the entire configuration file with its backup. Other in-game changes made after the backup will be lost.");
+            warning += Loc.T("\n\nCác file sẽ được khôi phục:\n", "\n\nFiles to restore:\n") + string.Join("\n", available);
             if (missing.Count > 0)
                 warning += Loc.T("\n\nCác file không có bản sao lưu sẽ được bỏ qua:\n", "\n\nFiles without backups will be skipped:\n") + string.Join("\n", missing);
             if (MessageBox.Show(warning, Loc.T("Xác nhận khôi phục", "Confirm restore"), MessageBoxButton.YesNo, MessageBoxImage.Warning) != MessageBoxResult.Yes) return;
 
             var errors = new List<string>();
             int restored = 0;
-            foreach (var item in available)
+            foreach (string path in available)
             {
-                string path = item.FilePath;
                 try
                 {
-                    var attr = File.GetAttributes(path);
-                    File.SetAttributes(path, attr & ~FileAttributes.ReadOnly);
-                    try
-                    {
-                        File.Copy(GetBackupPath(path), path, true);
-                        File.SetAttributes(path, File.GetAttributes(path) & ~FileAttributes.ReadOnly);
-                        restored++;
-                    }
-                    catch
-                    {
-                        if (File.Exists(path)) File.SetAttributes(path, attr);
-                        throw;
-                    }
+                    ConfigFiles.Restore(path, GetBackupPath(path));
+                    restored++;
                 }
                 catch (Exception ex)
                 {
                     errors.Add(path + ": " + ex.Message);
                 }
             }
-            _SG.Clear();
-            _iniList.Clear();
             StartUP();
             string result = Loc.T("Đã khôi phục: ", "Restored: ") + restored + "/" + available.Count;
             if (missing.Count > 0) result += Loc.T("\nKhông có bản sao lưu: ", "\nMissing backups: ") + missing.Count;
@@ -408,85 +380,85 @@ namespace ValorantResFix
             MessageBox.Show(result, Loc.T("Kết quả khôi phục", "Restore result"));
         }
 
-        // helper method to save ini
-        private bool SaveChanges(ScalabilityGroups sg)
+        private void BrowseBtn_Click(object sender, RoutedEventArgs e)
         {
             try
             {
-                for (int i = 0; i < _iniList.Count; i++)
-                {
-                    string filePath = _SG[i].FilePath;
-                    if (!File.Exists(filePath))
-                        throw new FileNotFoundException("Không tìm thấy file cấu hình", filePath);
-                    _iniList[i] = parser.ReadFile(filePath);
-                    if (_iniList[i]["ScalabilityGroups"] == null)
-                    {
-                        _iniList[i].Sections.AddSection("ScalabilityGroups");
-                    }
-
-                    _iniList[i]["ScalabilityGroups"]["sg.ResolutionQuality"] = sg.ResolutionQuality + ".000000";
-                    _iniList[i]["ScalabilityGroups"]["sg.ViewDistanceQuality"] = sg.ViewDistanceQuality.ToString();
-                    _iniList[i]["ScalabilityGroups"]["sg.AntiAliasingQuality"] = sg.AntiAliasingQuality.ToString();
-                    _iniList[i]["ScalabilityGroups"]["sg.ShadowQuality"] = sg.ShadowQuality.ToString();
-                    _iniList[i]["ScalabilityGroups"]["sg.PostProcessQuality"] = sg.PostProcessQuality.ToString();
-                    _iniList[i]["ScalabilityGroups"]["sg.TextureQuality"] = sg.TextureQuality.ToString();
-                    _iniList[i]["ScalabilityGroups"]["sg.EffectsQuality"] = sg.EffectsQuality.ToString();
-                    _iniList[i]["ScalabilityGroups"]["sg.FoliageQuality"] = sg.FoliageQuality.ToString();
-                    _iniList[i]["ScalabilityGroups"]["sg.ShadingQuality"] = sg.ShadingQuality.ToString();
-                    _iniList[i]["ScalabilityGroups"]["sg.GlobalIlluminationQuality"] = sg.GlobalIlluminationQuality.ToString();
-                    _iniList[i]["ScalabilityGroups"]["sg.ReflectionQuality"] = sg.ReflectionQuality.ToString();
-
-                    if (i < _SG.Count)
-                    {
-                        _SG[i].ResolutionQuality = sg.ResolutionQuality;
-                        _SG[i].ViewDistanceQuality = sg.ViewDistanceQuality;
-                        _SG[i].AntiAliasingQuality = sg.AntiAliasingQuality;
-                        _SG[i].ShadowQuality = sg.ShadowQuality;
-                        _SG[i].PostProcessQuality = sg.PostProcessQuality;
-                        _SG[i].TextureQuality = sg.TextureQuality;
-                        _SG[i].EffectsQuality = sg.EffectsQuality;
-                        _SG[i].FoliageQuality = sg.FoliageQuality;
-                        _SG[i].ShadingQuality = sg.ShadingQuality;
-                        _SG[i].GlobalIlluminationQuality = sg.GlobalIlluminationQuality;
-                        _SG[i].ReflectionQuality = sg.ReflectionQuality;
-                    }
-
-                    if (File.Exists(filePath))
-                    {
-                        string backup = GetBackupPath(filePath);
-                        Directory.CreateDirectory(System.IO.Path.GetDirectoryName(backup));
-                        if (!File.Exists(backup)) File.Copy(filePath, backup);
-                        var attr = File.GetAttributes(filePath);
-
-                        // unset read-only before writing
-                        if ((attr & FileAttributes.ReadOnly) == FileAttributes.ReadOnly)
-                        {
-                            File.SetAttributes(filePath, attr & ~FileAttributes.ReadOnly);
-                        }
-
-                        try
-                        {
-                            parser.WriteFile(filePath, _iniList[i]);
-                            File.SetAttributes(filePath, attr | FileAttributes.ReadOnly);
-                        }
-                        catch
-                        {
-                            if (File.Exists(filePath)) File.SetAttributes(filePath, attr);
-                            throw;
-                        }
-                    }
-                    else
-                    {
-                        throw new FileNotFoundException("Không tìm thấy file cấu hình", filePath);
-                    }
-                }
-                return true;
+                string path = ConfigFiles.Browse(ConfigName, BackupKind);
+                if (path == null) return;
+                if (!_fnames.Contains(path, StringComparer.OrdinalIgnoreCase))
+                    _fnames.Add(path);
+                StartUP();
             }
             catch (Exception ex)
             {
-                MessageBox.Show("Có lỗi xảy ra khi lưu thiết lập: " + ex.Message, "Lỗi");
-                return false;
+                MessageBox.Show(Loc.T("Lỗi khi mở file: ", "Error opening file: ") + ex.Message, Loc.T("Lỗi", "Error"));
             }
+        }
+
+        private static bool HasLegacyBackup()
+        {
+            return File.Exists("Backup.dat") ||
+                   File.Exists(System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Backup.dat"));
+        }
+
+        private static string LegacyBackupNotice()
+        {
+            return Loc.T(
+                "Đã tìm thấy Backup.dat của bản cũ. Nếu đã tối ưu bằng bản cũ, hãy dùng bản cũ để khôi phục trên đúng cấu hình trước khi lưu bằng bản này. Bản này sẽ sao lưu nội dung hiện có của từng file.",
+                "A legacy Backup.dat was found. If you applied settings with the old version, use that version to restore the matching config before saving here. This version backs up each file's current contents.");
+        }
+
+        private bool SaveChanges(ScalabilityGroups sg)
+        {
+            if (HasLegacyBackup() && _fnames.Any(path => File.Exists(path) && !File.Exists(GetBackupPath(path))))
+            {
+                if (MessageBox.Show(LegacyBackupNotice(), Loc.T("Tiếp tục lưu?", "Continue saving?"),
+                    MessageBoxButton.YesNo, MessageBoxImage.Warning, MessageBoxResult.No) != MessageBoxResult.Yes)
+                    return false;
+            }
+
+            var saved = new List<string>();
+            var errors = new List<string>();
+            foreach (string path in _fnames)
+            {
+                try
+                {
+                    var data = parser.ReadFile(path);
+                    var settings = data["ScalabilityGroups"];
+                    if (settings == null)
+                    {
+                        data.Sections.AddSection("ScalabilityGroups");
+                        settings = data["ScalabilityGroups"];
+                    }
+
+                    settings["sg.ResolutionQuality"] = sg.ResolutionQuality + ".000000";
+                    settings["sg.ViewDistanceQuality"] = sg.ViewDistanceQuality.ToString();
+                    settings["sg.AntiAliasingQuality"] = sg.AntiAliasingQuality.ToString();
+                    settings["sg.ShadowQuality"] = sg.ShadowQuality.ToString();
+                    settings["sg.PostProcessQuality"] = sg.PostProcessQuality.ToString();
+                    settings["sg.TextureQuality"] = sg.TextureQuality.ToString();
+                    settings["sg.EffectsQuality"] = sg.EffectsQuality.ToString();
+                    settings["sg.FoliageQuality"] = sg.FoliageQuality.ToString();
+                    settings["sg.ShadingQuality"] = sg.ShadingQuality.ToString();
+                    settings["sg.GlobalIlluminationQuality"] = sg.GlobalIlluminationQuality.ToString();
+                    settings["sg.ReflectionQuality"] = sg.ReflectionQuality.ToString();
+
+                    ConfigFiles.Save(path, GetBackupPath(path), temp => parser.WriteFile(temp, data));
+                    saved.Add(path);
+                }
+                catch (Exception ex)
+                {
+                    errors.Add(path + ": " + ex.Message);
+                }
+            }
+
+            if (errors.Count == 0) return true;
+            string result = Loc.T("Đã lưu và khóa: ", "Saved and locked: ") + saved.Count + "/" + _fnames.Count;
+            if (saved.Count > 0) result += "\n" + string.Join("\n", saved);
+            result += Loc.T("\n\nCó lỗi:\n", "\n\nErrors:\n") + string.Join("\n", errors);
+            MessageBox.Show(result, Loc.T("Kết quả lưu", "Save result"));
+            return false;
         }
     }
 }

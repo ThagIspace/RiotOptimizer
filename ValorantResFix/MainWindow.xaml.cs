@@ -58,9 +58,9 @@ namespace ValorantResFix
                 NoticeItem2Body1.Text = "• Sau khi Lưu hoặc Tối ưu FPS, phần mềm sẽ tự động bật thuộc tính Read-Only cho file cấu hình.";
                 NoticeItem2Body2.Text = "• Việc này giúp giữ nguyên tỷ lệ Resolution Quality (độ phân giải nội bộ) dưới 100% không bị game tự reset khi vào trận.";
 
-                NoticeItem3Title.Text = "3. Cách hoàn tác về mặc định (Khôi phục gốc / Rollback)";
-                NoticeItem3Body1.Text = "• Nếu bạn muốn chỉnh lại đồ họa trong menu game như bình thường, chỉ cần bấm nút 'Khôi phục gốc'.";
-                NoticeItem3Body2.Text = "• Tool sẽ tự động mở khóa file (tắt Read-Only) và đưa toàn bộ thông số về mặc định ban đầu.";
+                NoticeItem3Title.Text = "3. Cách khôi phục bản sao lưu";
+                NoticeItem3Body1.Text = "• Nếu bạn muốn chỉnh lại đồ họa trong menu game như bình thường, bấm 'Khôi phục bản sao lưu'.";
+                NoticeItem3Body2.Text = "• Tool sẽ tự động mở khóa file (tắt Read-Only) và chép lại bản sao đã lưu của file cấu hình.";
 
                 NoticeItem4Title.Text = "4. Hỗ trợ nhiều tài khoản (VALORANT)";
                 NoticeItem4Body1.Text = "• Ứng dụng tự động quét và đồng bộ thiết lập tối ưu cho TẤT CẢ các tài khoản VALORANT có trên máy cùng một lúc.";
@@ -88,9 +88,9 @@ namespace ValorantResFix
                 NoticeItem2Body1.Text = "• After Saving or Applying Low settings, the app locks the config file as Read-Only.";
                 NoticeItem2Body2.Text = "• This prevents the game from resetting custom Resolution Quality (< 100%) when loading a match.";
 
-                NoticeItem3Title.Text = "3. How to revert to defaults (Rollback)";
-                NoticeItem3Body1.Text = "• To restore original defaults and configure graphics inside the game normally, click 'Rollback Default'.";
-                NoticeItem3Body2.Text = "• The tool removes the Read-Only lock and reverts all settings back to original defaults.";
+                NoticeItem3Title.Text = "3. How to restore a backup";
+                NoticeItem3Body1.Text = "• To restore a saved config and configure graphics inside the game normally, click 'Restore Backup'.";
+                NoticeItem3Body2.Text = "• The tool removes the Read-Only lock and restores the saved copy of the config.";
 
                 NoticeItem4Title.Text = "4. Multi-account synchronization (VALORANT)";
                 NoticeItem4Body1.Text = "• Automatically detects and applies settings to ALL VALORANT accounts installed on this PC simultaneously.";
@@ -118,6 +118,12 @@ namespace ValorantResFix
 
             MyBaseFrame.Navigate(_valPage);
             UpdateTabStyles();
+        }
+
+        internal void ShowValorantFiles(List<string> paths)
+        {
+            _valPage = new Home(paths);
+            MyBaseFrame.Navigate(_valPage);
         }
 
         private void TabValBtn_Click(object sender, RoutedEventArgs e)
@@ -303,7 +309,7 @@ namespace ValorantResFix
                     "Tính năng chính:\n" +
                     "• VALORANT: Hạ độ phân giải nội bộ (Resolution Quality), chỉnh đầy đủ thông số đồ họa, đồng bộ tự động tất cả tài khoản.\n" +
                     "• Liên Minh Huyền Thoại: Cấu hình giảm trễ input tối đa, tắt ánh sáng mặt trời/sinh vật cảnh, tối ưu giao diện HUD.\n" +
-                    "• Khôi phục gốc (Rollback) 1-click cho cả 2 tựa game.\n\n" +
+                    "• Khôi phục bản sao lưu cho cả 2 tựa game.\n\n" +
                     "Tác giả & Đóng góp:\n" +
                     "• Tác giả gốc: xFahim (https://github.com/xFahim/ValorantResFix)\n" +
                     "• Phát triển & Mở rộng: ThagIspace (https://github.com/ThagIspace/RiotOptimizer)\n\n" +
@@ -320,7 +326,7 @@ namespace ValorantResFix
                     "Key Features:\n" +
                     "• VALORANT: Internal resolution scaling, all scalability groups, automatic multi-account sync.\n" +
                     "• League of Legends: Low-latency presets, godrays/eyecandy removal, HUD optimizations.\n" +
-                    "• 1-Click Rollback for both games.\n\n" +
+                    "• Backup restoration for both games.\n\n" +
                     "Credits:\n" +
                     "• Original Creator: xFahim (https://github.com/xFahim/ValorantResFix)\n" +
                     "• Maintained & Expanded by: ThagIspace (https://github.com/ThagIspace/RiotOptimizer)\n\n" +

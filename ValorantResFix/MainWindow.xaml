@@ -122,9 +122,9 @@
                             <!-- 3 -->
                             <Border Background="#FF252525" CornerRadius="6" Padding="12 9" Margin="0 0 0 7">
                                 <StackPanel>
-                                    <TextBlock Name="NoticeItem3Title" Text="3. Cách hoàn tác về mặc định (Khôi phục gốc / Rollback)" FontWeight="Bold" Foreground="White" Margin="0 0 0 3"/>
-                                    <TextBlock Name="NoticeItem3Body1" Text="• Nếu bạn muốn chỉnh lại đồ họa trong menu game như bình thường, chỉ cần bấm nút 'Khôi phục gốc'." TextWrapping="Wrap" Opacity="0.9"/>
-                                    <TextBlock Name="NoticeItem3Body2" Text="• Tool sẽ tự động mở khóa file (tắt Read-Only) và đưa toàn bộ thông số về mặc định ban đầu." TextWrapping="Wrap" Opacity="0.9"/>
+                                    <TextBlock Name="NoticeItem3Title" Text="3. Cách khôi phục bản sao lưu" FontWeight="Bold" Foreground="White" Margin="0 0 0 3"/>
+                                    <TextBlock Name="NoticeItem3Body1" Text="• Nếu bạn muốn chỉnh lại đồ họa trong menu game như bình thường, bấm 'Khôi phục bản sao lưu'." TextWrapping="Wrap" Opacity="0.9"/>
+                                    <TextBlock Name="NoticeItem3Body2" Text="• Tool sẽ tự động mở khóa file (tắt Read-Only) và chép lại bản sao đã lưu của file cấu hình." TextWrapping="Wrap" Opacity="0.9"/>
                                 </StackPanel>
                             </Border>
 

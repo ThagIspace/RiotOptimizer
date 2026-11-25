@@ -53,18 +53,9 @@ namespace ValorantResFix
         {
             try
             {
-                Microsoft.Win32.OpenFileDialog dlg = new Microsoft.Win32.OpenFileDialog();
-                dlg.Filter = "Valorant Config (GameUserSettings.ini)|GameUserSettings.ini|INI Files (*.ini)|*.ini|All Files (*.*)|*.*";
-                dlg.Title = Loc.T("Chọn file GameUserSettings.ini của VALORANT", "Select GameUserSettings.ini");
-
-                bool? result = dlg.ShowDialog();
-                if (result == true)
-                {
-                    if (this.NavigationService != null)
-                    {
-                        this.NavigationService.Navigate(new Home(new List<string> { dlg.FileName }));
-                    }
-                }
+                string path = ConfigFiles.Browse(Home.ConfigName, Home.BackupKind);
+                if (path != null)
+                    ShowFiles(new List<string> { path });
             }
             catch (Exception ex)
             {
@@ -77,10 +68,7 @@ namespace ValorantResFix
             List<string> found = MainWindow.ScanAllDrives();
             if (found != null && found.Count > 0)
             {
-                if (this.NavigationService != null)
-                {
-                    this.NavigationService.Navigate(new Home(found));
-                }
+                ShowFiles(found);
             }
             else
             {
@@ -89,6 +77,15 @@ namespace ValorantResFix
                           "Rescan complete. Could not find GameUserSettings.ini automatically.\nPlease use 'Browse File Manually' to locate your file."),
                     Loc.T("Thông báo", "Notice"));
             }
+        }
+
+        private void ShowFiles(List<string> paths)
+        {
+            var window = Window.GetWindow(this) as MainWindow;
+            if (window == null) return;
+
+            Loc.OnLanguageChanged -= ApplyLocalization;
+            window.ShowValorantFiles(paths);
         }
     }
 }

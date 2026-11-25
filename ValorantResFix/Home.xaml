@@ -94,13 +94,16 @@
             <StackPanel Margin="0 25 0 0" HorizontalAlignment="Center" Orientation="Horizontal">
                 <Button Name="SaveBtn" Click="SaveBtn_Click" Width="140" Margin="6" ToolTip="Lưu thiết lập vào tất cả tài khoản">Lưu thay đổi</Button>
                 <Button Name="ApplyLowBtn" Click="ApplyLowBtn_Click" Width="180" Margin="6" ToolTip="Cài đặt cấu hình thấp nhất để tối đa hóa FPS">Tối ưu FPS (Low)</Button>
-                <Button Name="resDefBtn" Click="resDefBtn_Click" Width="190" Margin="6" Style="{DynamicResource MaterialDesignOutlinedButton}" Foreground="LightCoral" BorderBrush="LightCoral" ToolTip="Khôi phục tất cả tài khoản về cài đặt gốc và mở khóa file">
+                <Button Name="resDefBtn" Click="resDefBtn_Click" Width="190" Margin="6" Style="{DynamicResource MaterialDesignOutlinedButton}" Foreground="LightCoral" BorderBrush="LightCoral" ToolTip="Khôi phục các file có bản sao lưu và mở khóa file">
                     <StackPanel Orientation="Horizontal">
                         <materialDesign:PackIcon Kind="Restore" VerticalAlignment="Center" Margin="0 0 6 0"/>
-                        <TextBlock Name="ResDefBtnText" Text="Khôi phục gốc" VerticalAlignment="Center" FontWeight="SemiBold"/>
+                        <TextBlock Name="ResDefBtnText" Text="Khôi phục bản sao lưu" VerticalAlignment="Center" FontWeight="SemiBold"/>
                     </StackPanel>
                 </Button>
             </StackPanel>
+
+            <Button Name="BrowseBtn" Click="BrowseBtn_Click" HorizontalAlignment="Center" Margin="0 4 0 0"
+                    Style="{DynamicResource MaterialDesignOutlinedButton}">Chọn file...</Button>
 
             <StackPanel Margin="5" Name="LoadGrid">
                 <TextBlock Name="LoadTxt" HorizontalAlignment="Center" FontWeight="SemiBold">Đang tải dữ liệu, vui lòng đợi...</TextBlock>

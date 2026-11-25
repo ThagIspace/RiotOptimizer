@@ -73,6 +73,7 @@
     </Compile>
     <Compile Include="ScalabilityGroups.cs" />
     <Compile Include="LoLSettings.cs" />
+    <Compile Include="ConfigFiles.cs" />
     <Compile Include="Loc.cs" />
     <Compile Include="Shelper.cs" />
     <Compile Include="LoLPage.xaml.cs">
