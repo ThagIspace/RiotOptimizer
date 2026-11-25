@@ -211,7 +211,7 @@ namespace ValorantResFix
             return defaultVal;
         }
 
-        private void LoadConfig(string path)
+        private bool LoadConfig(string path)
         {
             try
             {
@@ -257,6 +257,7 @@ namespace ValorantResFix
                 _iniData = loadedData;
                 _cfgPath = path;
                 PathBox.Text = path;
+                return true;
             }
             catch (Exception ex)
             {
@@ -264,6 +265,7 @@ namespace ValorantResFix
                 _iniData = null;
                 PathBox.Text = Loc.T("Không thể đọc file. Vui lòng chọn lại.", "Unable to read file. Please select it again.");
                 MessageBox.Show("Lỗi đọc file game.cfg: " + ex.Message, "Lỗi");
+                return false;
             }
         }
 
@@ -468,7 +470,7 @@ namespace ValorantResFix
                     throw;
                 }
 
-                LoadConfig(_cfgPath);
+                if (!LoadConfig(_cfgPath)) return;
                 MessageBox.Show(
                     Loc.T("Đã khôi phục cài đặt LMHT gốc thành công và mở khóa file (bỏ Read-Only)!",
                           "Default LoL settings restored successfully and file unlocked!"),
@@ -489,27 +491,27 @@ namespace ValorantResFix
             bool disableFXAA, bool disableEternals, bool disableVSync,
             bool unlockReadOnly)
         {
-            if (_iniData == null) _iniData = _parser.ReadFile(_cfgPath, Encoding.Default);
+            var currentData = _parser.ReadFile(_cfgPath, Encoding.Default);
 
             // [Performance]
-            if (_iniData["Performance"] == null) _iniData.Sections.AddSection("Performance");
-            _iniData["Performance"]["ShadowQuality"] = shadow.ToString();
-            _iniData["Performance"]["CharacterQuality"] = character.ToString();
-            _iniData["Performance"]["EnvironmentQuality"] = env.ToString();
-            _iniData["Performance"]["EffectsQuality"] = fx.ToString();
-            _iniData["Performance"]["EnableFXAA"] = disableFXAA ? "0" : "1";
-            _iniData["Performance"]["EnableHUDAnimations"] = disableHUDAnim ? "0" : "1";
+            if (currentData["Performance"] == null) currentData.Sections.AddSection("Performance");
+            currentData["Performance"]["ShadowQuality"] = shadow.ToString();
+            currentData["Performance"]["CharacterQuality"] = character.ToString();
+            currentData["Performance"]["EnvironmentQuality"] = env.ToString();
+            currentData["Performance"]["EffectsQuality"] = fx.ToString();
+            currentData["Performance"]["EnableFXAA"] = disableFXAA ? "0" : "1";
+            currentData["Performance"]["EnableHUDAnimations"] = disableHUDAnim ? "0" : "1";
 
             // [General]
-            if (_iniData["General"] == null) _iniData.Sections.AddSection("General");
-            _iniData["General"]["WindowMode"] = winMode.ToString();
-            _iniData["General"]["WaitForVerticalSync"] = disableVSync ? "0" : "1";
-            _iniData["General"]["ShowGodray"] = disableGodray ? "0" : "1";
-            _iniData["General"]["HideEyeCandy"] = hideEyeCandy ? "1" : "0";
+            if (currentData["General"] == null) currentData.Sections.AddSection("General");
+            currentData["General"]["WindowMode"] = winMode.ToString();
+            currentData["General"]["WaitForVerticalSync"] = disableVSync ? "0" : "1";
+            currentData["General"]["ShowGodray"] = disableGodray ? "0" : "1";
+            currentData["General"]["HideEyeCandy"] = hideEyeCandy ? "1" : "0";
 
             // [HUD]
-            if (_iniData["HUD"] == null) _iniData.Sections.AddSection("HUD");
-            _iniData["HUD"]["EternalsMilestoneDisplayMode"] = disableEternals ? "0" : "2";
+            if (currentData["HUD"] == null) currentData.Sections.AddSection("HUD");
+            currentData["HUD"]["EternalsMilestoneDisplayMode"] = disableEternals ? "0" : "2";
 
             string backupPath = GetBackupPath(_cfgPath);
             Directory.CreateDirectory(System.IO.Path.GetDirectoryName(backupPath));
@@ -520,7 +522,7 @@ namespace ValorantResFix
                 File.SetAttributes(_cfgPath, attr & ~FileAttributes.ReadOnly);
             }
 
-            _parser.WriteFile(_cfgPath, _iniData, Encoding.Default);
+            _parser.WriteFile(_cfgPath, currentData, Encoding.Default);
 
             if (unlockReadOnly)
             {

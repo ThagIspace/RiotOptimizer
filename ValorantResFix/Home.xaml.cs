@@ -407,6 +407,10 @@ namespace ValorantResFix
             {
                 for (int i = 0; i < _iniList.Count; i++)
                 {
+                    string filePath = _SG[i].FilePath;
+                    if (!File.Exists(filePath))
+                        throw new FileNotFoundException("Không tìm thấy file cấu hình", filePath);
+                    _iniList[i] = parser.ReadFile(filePath);
                     if (_iniList[i]["ScalabilityGroups"] == null)
                     {
                         _iniList[i].Sections.AddSection("ScalabilityGroups");
@@ -439,7 +443,6 @@ namespace ValorantResFix
                         _SG[i].ReflectionQuality = sg.ReflectionQuality;
                     }
 
-                    string filePath = _SG[i].FilePath;
                     if (File.Exists(filePath))
                     {
                         string backup = GetBackupPath(filePath);
